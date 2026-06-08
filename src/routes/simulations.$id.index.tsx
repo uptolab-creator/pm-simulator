@@ -201,6 +201,7 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
   const [messages, setMessages] = useState(scenario.messages);
   const [suggested, setSuggested] = useState(scenario.suggestedActions);
   const [lastReaction, setLastReaction] = useState<string | null>(null);
+  const [selectedResource, setSelectedResource] = useState(scenario.resources[0] ?? "");
 
   async function submit(text: string) {
     if (!text.trim() || pending) return;
@@ -213,6 +214,7 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
           step,
           totalSteps: scenario.totalSteps,
           decision: text,
+          currentSuggestedActions: suggested,
           history,
           language: lang,
         },
