@@ -20,6 +20,7 @@ const DecisionInput = z.object({
   history: z
     .array(z.object({ step: z.number(), decision: z.string(), reaction: z.string() }))
     .max(30),
+  language: z.enum(["ru", "en"]).optional().default("ru"),
 });
 
 const ReactionSchema = z.object({
@@ -69,6 +70,11 @@ export const reactToDecision = createServerFn({ method: "POST" })
       .map((h) => `Step ${h.step}: User did "${h.decision}" → ${h.reaction}`)
       .join("\n");
 
+    const langInstruction =
+      data.language === "ru"
+        ? "IMPORTANT: Respond ENTIRELY in Russian. All fields (reaction, newUpdate, newMessage.text, newMessage.from, newMessage.role, metric labels/values/deltas, suggestedActions) must be in Russian."
+        : "Respond entirely in English.";
+
     const { output } = await generateText({
       model: getModel(),
       output: Output.object({ schema: ReactionSchema }),
@@ -79,7 +85,9 @@ ${historyText || "(none yet)"}
 
 USER DECISION at step ${data.step}/${data.totalSteps}: "${data.decision}"
 
-Generate the realistic next state. Stakeholder reactions can be supportive, frustrated, demanding, or unclear. Metrics should change plausibly based on the action. Hidden scores 0-100 reflect overall trajectory.`,
+Generate the realistic next state. Stakeholder reactions can be supportive, frustrated, demanding, or unclear. Metrics should change plausibly based on the action. Hidden scores 0-100 reflect overall trajectory.
+
+${langInstruction}`,
     });
 
     return output;
@@ -88,6 +96,7 @@ Generate the realistic next state. Stakeholder reactions can be supportive, frus
 const ReportInput = z.object({
   scenarioId: z.string(),
   history: z.array(z.object({ step: z.number(), decision: z.string(), reaction: z.string() })),
+  language: z.enum(["ru", "en"]).optional().default("ru"),
 });
 
 const ReportSchema = z.object({
@@ -117,6 +126,11 @@ export const generateReport = createServerFn({ method: "POST" })
       .map((h) => `Step ${h.step}: "${h.decision}" → ${h.reaction}`)
       .join("\n");
 
+    const langInstruction =
+      data.language === "ru"
+        ? "IMPORTANT: Write ALL text fields (verdict, strengths, improvements, summary, recommendations) ENTIRELY in Russian."
+        : "Write all text in English.";
+
     const { output } = await generateText({
       model: getModel(),
       output: Output.object({ schema: ReportSchema }),
@@ -128,7 +142,9 @@ ${buildContext(scenario)}
 DECISIONS MADE:
 ${historyText}
 
-Score 0-100 across 6 PM/PgM skills. Be honest but constructive. Provide concrete strengths, areas to improve, and specific recommendations. Verdict examples: "Exceptional", "Strong Performance", "Good Performance", "Needs Improvement".`,
+Score 0-100 across 6 PM/PgM skills. Be honest but constructive. Provide concrete strengths, areas to improve, and specific recommendations.
+
+${langInstruction}`,
     });
 
     return output;
