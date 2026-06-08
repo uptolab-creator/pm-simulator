@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 
 import { getScenario, type Scenario } from "@/lib/scenarios";
 import { reactToDecision, generateReport } from "@/lib/simulation.functions";
-import { useI18n, useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import {
   ArrowLeft,
   BarChart3,
+  ClipboardList,
   FileText,
   Loader2,
   MessageSquare,
@@ -51,6 +52,41 @@ export const Route = createFileRoute("/simulations/$id/")({
 
 type HistoryItem = { step: number; decision: string; reaction: string };
 type LiveMetric = { label: string; value: string; delta?: string; trend?: "up" | "down" | "flat" };
+
+function resourceDetail(resource: string, scenario: Scenario, step: number) {
+  const lower = resource.toLowerCase();
+  const metric = scenario.metrics[(step - 1) % scenario.metrics.length];
+  const message = scenario.messages[(step - 1) % Math.max(1, scenario.messages.length)];
+  const update = scenario.updates[(step - 1) % Math.max(1, scenario.updates.length)];
+
+  if (lower.includes("конкур") || lower.includes("competitor") || lower.includes("teardown")) {
+    return `Главный конкурент уже продвигает похожее решение. Сильная сторона — скорость запуска и ясный value proposition; слабая — слабая интеграция в текущий workflow клиентов ${scenario.company.name}.`;
+  }
+  if (lower.includes("интерв") || lower.includes("interview") || lower.includes("feedback")) {
+    return message
+      ? `${message.from} (${message.role}): «${message.text}» Дополнительный сигнал: клиенты хотят меньше ручной работы и более понятный результат.`
+      : `В интервью чаще всего повторяется запрос на более быстрый workflow и понятный ROI.`;
+  }
+  if (lower.includes("ёмкость") || lower.includes("capacity") || lower.includes("cost") || lower.includes("стоим")) {
+    return `Предварительная оценка: MVP потребует 2–3 инженеров на 4–6 недель. Самые дорогие зоны — интеграции, качество данных и UX для первого запуска.`;
+  }
+  if (lower.includes("analytics") || lower.includes("dashboard") || lower.includes("аналит")) {
+    return `${metric.label}: ${metric.value}${metric.delta ? ` (${metric.delta})` : ""}. Тренд требует проверить сегменты и сравнить поведение до/после последних изменений.`;
+  }
+  if (lower.includes("risk") || lower.includes("риск") || lower.includes("error") || lower.includes("лог")) {
+    return update ? `Последний сигнал: ${update.text}. Риск: решение без быстрого owner-а и срока может усилить давление стейкхолдеров.` : `Основной риск — потеря времени на обсуждение без явного владельца следующего шага.`;
+  }
+  return `${resource}: рабочий артефакт для сценария «${scenario.scenario}». Используй его, чтобы уточнить гипотезу, риски и следующий шаг.`;
+}
+
+function ResourceIcon({ resource }: { resource: string }) {
+  const r = resource.toLowerCase();
+  if (r.includes("dashboard") || r.includes("аналит")) return <BarChart3 className="size-4 text-primary" />;
+  if (r.includes("feedback") || r.includes("interview") || r.includes("интерв")) return <MessageSquare className="size-4 text-primary" />;
+  if (r.includes("error") || r.includes("risk") || r.includes("лог") || r.includes("риск")) return <AlertTriangle className="size-4 text-warning" />;
+  if (r.includes("capacity") || r.includes("ёмкость") || r.includes("стоим")) return <ClipboardList className="size-4 text-primary" />;
+  return <FileText className="size-4 text-primary" />;
+}
 
 function SimulationRunner() {
   const { scenarioId } = Route.useLoaderData();
@@ -163,6 +199,7 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () => void }) {
   const { t, tRole, lang } = useI18n();
   const react = useServerFn(reactToDecision);
+  const buildReport = useServerFn(generateReport);
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
@@ -174,6 +211,7 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
   const [messages, setMessages] = useState(scenario.messages);
   const [suggested, setSuggested] = useState(scenario.suggestedActions);
   const [lastReaction, setLastReaction] = useState<string | null>(null);
+  const [selectedResource, setSelectedResource] = useState(scenario.resources[0] ?? "");
 
   async function submit(text: string) {
     if (!text.trim() || pending) return;
@@ -186,6 +224,7 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
           step,
           totalSteps: scenario.totalSteps,
           decision: text,
+          currentSuggestedActions: suggested,
           history,
           language: lang,
         },
@@ -218,7 +257,7 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
 
       if (step >= scenario.totalSteps) {
         // build & store report
-        const report = await generateReport({
+        const report = await buildReport({
           data: {
             scenarioId: scenario.id,
             history: [...history, { step, decision: text, reaction: res.reaction }],
@@ -383,15 +422,32 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
               <h3 className="font-semibold text-sm mb-3">{t("run.resources")}</h3>
               <div className="space-y-2">
                 {scenario.resources.map((r) => (
-                  <div key={r} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
-                    {r.toLowerCase().includes("dashboard") ? <BarChart3 className="size-4 text-primary" /> :
-                     r.toLowerCase().includes("feedback") || r.toLowerCase().includes("interview") ? <MessageSquare className="size-4 text-primary" /> :
-                     r.toLowerCase().includes("error") || r.toLowerCase().includes("risk") ? <AlertTriangle className="size-4 text-warning" /> :
-                     <FileText className="size-4 text-primary" />}
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setSelectedResource(r)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-lg border p-3 text-sm text-left transition-all",
+                      selectedResource === r
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "hover:border-primary/50 hover:bg-secondary/50",
+                    )}
+                  >
+                    <ResourceIcon resource={r} />
                     {r}
-                  </div>
+                  </button>
                 ))}
               </div>
+              {selectedResource && (
+                <div className="mt-4 rounded-lg bg-secondary/40 border p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-primary">
+                    <ClipboardList className="size-3.5" /> {selectedResource}
+                  </div>
+                  <p className="mt-2 text-sm text-foreground leading-relaxed">
+                    {resourceDetail(selectedResource, scenario, step)}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Step timeline */}
