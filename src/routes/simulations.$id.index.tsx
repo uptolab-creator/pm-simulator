@@ -412,15 +412,35 @@ function Running({ scenario, onComplete }: { scenario: Scenario; onComplete: () 
               <h3 className="font-semibold text-sm mb-3">{t("run.resources")}</h3>
               <div className="space-y-2">
                 {scenario.resources.map((r) => (
-                  <div key={r} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setSelectedResource(r)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-lg border p-3 text-sm text-left transition-all",
+                      selectedResource === r
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "hover:border-primary/50 hover:bg-secondary/50",
+                    )}
+                  >
                     {r.toLowerCase().includes("dashboard") ? <BarChart3 className="size-4 text-primary" /> :
                      r.toLowerCase().includes("feedback") || r.toLowerCase().includes("interview") ? <MessageSquare className="size-4 text-primary" /> :
                      r.toLowerCase().includes("error") || r.toLowerCase().includes("risk") ? <AlertTriangle className="size-4 text-warning" /> :
                      <FileText className="size-4 text-primary" />}
                     {r}
-                  </div>
+                  </button>
                 ))}
               </div>
+              {selectedResource && (
+                <div className="mt-4 rounded-lg bg-secondary/40 border p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-primary">
+                    <ClipboardList className="size-3.5" /> {selectedResource}
+                  </div>
+                  <p className="mt-2 text-sm text-foreground leading-relaxed">
+                    {resourceDetail(selectedResource, scenario, step)}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Step timeline */}
