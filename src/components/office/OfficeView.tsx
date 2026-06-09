@@ -18,9 +18,6 @@ import {
   Battery,
   Signal,
   X,
-  Laptop,
-  Smartphone,
-  Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
