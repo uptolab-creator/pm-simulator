@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -14,6 +14,9 @@ import {
   Minus,
   AlertTriangle,
   Clock,
+  Wifi,
+  Battery,
+  Signal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,9 +54,55 @@ export function OfficeView(props: OfficeViewProps) {
   const [active, setActive] = useState<DeskObjectId>("computer");
   const { scenario, step, totalSteps } = props;
 
+  // Progressive resource reveal (paper stack grows with step)
+  const visibleResourceCount = Math.min(
+    scenario.resources.length,
+    Math.max(2, step + 1),
+  );
+  const visibleResources = useMemo(
+    () => scenario.resources.slice(0, visibleResourceCount),
+    [scenario.resources, visibleResourceCount],
+  );
+
+  // Track unread + new arrivals
+  const [seenMessages, setSeenMessages] = useState(props.messages.length);
+  const [seenDocs, setSeenDocs] = useState(visibleResourceCount);
+  const [phoneRing, setPhoneRing] = useState(false);
+  const [paperPulse, setPaperPulse] = useState(false);
+  const prevMsgRef = useRef(props.messages.length);
+  const prevDocRef = useRef(visibleResourceCount);
+
+  useEffect(() => {
+    if (props.messages.length > prevMsgRef.current) {
+      setPhoneRing(true);
+      const t = setTimeout(() => setPhoneRing(false), 1800);
+      prevMsgRef.current = props.messages.length;
+      return () => clearTimeout(t);
+    }
+    prevMsgRef.current = props.messages.length;
+  }, [props.messages.length]);
+
+  useEffect(() => {
+    if (visibleResourceCount > prevDocRef.current) {
+      setPaperPulse(true);
+      const t = setTimeout(() => setPaperPulse(false), 700);
+      prevDocRef.current = visibleResourceCount;
+      return () => clearTimeout(t);
+    }
+    prevDocRef.current = visibleResourceCount;
+  }, [visibleResourceCount]);
+
+  // Mark read on focus
+  useEffect(() => {
+    if (active === "phone") setSeenMessages(props.messages.length);
+    if (active === "docs") setSeenDocs(visibleResourceCount);
+  }, [active, props.messages.length, visibleResourceCount]);
+
+  const unreadMessages = Math.max(0, props.messages.length - seenMessages);
+  const unreadDocs = Math.max(0, visibleResourceCount - seenDocs);
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-office-floor">
-      {/* Daylight + back wall */}
       <div
         className="absolute inset-0 -z-10"
         style={{ background: "var(--office-daylight)" }}
@@ -85,7 +134,6 @@ export function OfficeView(props: OfficeViewProps) {
           </div>
         </div>
 
-        {/* Whiteboard */}
         <Whiteboard
           scenario={scenario}
           metrics={props.metrics}
@@ -93,22 +141,31 @@ export function OfficeView(props: OfficeViewProps) {
           lastReaction={props.lastReaction}
         />
 
-        {/* Desk surface */}
-        <Desk active={active} onSelect={setActive} messageCount={props.messages.length} />
+        <Desk
+          active={active}
+          onSelect={setActive}
+          unreadMessages={unreadMessages}
+          unreadDocs={unreadDocs}
+          docsCount={visibleResourceCount}
+          phoneRing={phoneRing}
+          paperPulse={paperPulse}
+        />
 
-        {/* Active workspace */}
         <div className="mt-5">
           {active === "computer" && (
-            <ComputerPanel
-              suggested={props.suggested}
-              decision={props.decision}
-              setDecision={props.setDecision}
-              pending={props.pending}
-              submit={props.submit}
-              step={step}
-              totalSteps={totalSteps}
-              lastReaction={props.lastReaction}
-            />
+            <div className="office-screen-on" key={`pc-${step}`}>
+              <ComputerPanel
+                suggested={props.suggested}
+                decision={props.decision}
+                setDecision={props.setDecision}
+                pending={props.pending}
+                submit={props.submit}
+                step={step}
+                totalSteps={totalSteps}
+                lastReaction={props.lastReaction}
+                history={props.history}
+              />
+            </div>
           )}
           {active === "docs" && (
             <DocsPanel
@@ -116,12 +173,13 @@ export function OfficeView(props: OfficeViewProps) {
               step={step}
               selected={props.selectedResource}
               setSelected={props.setSelectedResource}
+              resources={visibleResources}
+              newCount={unreadDocs}
             />
           )}
           {active === "phone" && <PhonePanel messages={props.messages} />}
         </div>
 
-        {/* Timeline */}
         <div className="mt-5 rounded-xl border bg-card/80 backdrop-blur p-4 shadow-card">
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
             {t("run.timeline")}
@@ -131,7 +189,7 @@ export function OfficeView(props: OfficeViewProps) {
               <div
                 key={n}
                 className={cn(
-                  "size-7 rounded-full grid place-items-center text-[11px] font-semibold border",
+                  "size-7 rounded-full grid place-items-center text-[11px] font-semibold border transition-all",
                   n < step && "bg-primary text-primary-foreground border-primary",
                   n === step && "bg-primary/15 text-primary border-primary ring-2 ring-primary/30",
                   n > step && "bg-secondary text-muted-foreground border-border",
@@ -150,48 +208,85 @@ export function OfficeView(props: OfficeViewProps) {
 /* ---------------- Background scene ---------------- */
 function BackOfficeScene() {
   return (
-    <svg
-      className="absolute inset-x-0 top-0 -z-10 w-full h-[340px] pointer-events-none"
-      viewBox="0 0 1400 340"
-      preserveAspectRatio="xMidYMin slice"
-      aria-hidden
+    <>
+      <svg
+        className="absolute inset-x-0 top-0 -z-10 w-full h-[340px] pointer-events-none"
+        viewBox="0 0 1400 340"
+        preserveAspectRatio="xMidYMin slice"
+        aria-hidden
+      >
+        <defs>
+          <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor="var(--office-wall)" />
+            <stop offset="1" stopColor="var(--office-floor)" />
+          </linearGradient>
+        </defs>
+        <rect width="1400" height="340" fill="url(#wall)" />
+        <g opacity="0.9">
+          <rect x="60" y="60" width="280" height="220" rx="6"
+            fill="var(--office-glass)"
+            stroke="var(--office-glass-frame)" strokeWidth="1.5" />
+          <line x1="200" y1="60" x2="200" y2="280" stroke="var(--office-glass-frame)" strokeWidth="1" opacity="0.6" />
+          <line x1="60" y1="170" x2="340" y2="170" stroke="var(--office-glass-frame)" strokeWidth="0.6" opacity="0.4" />
+          {/* meeting silhouettes */}
+          <circle cx="120" cy="200" r="10" fill="var(--office-glass-frame)" opacity="0.35">
+            <animate attributeName="opacity" values="0.25;0.5;0.25" dur="4s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="170" cy="205" r="10" fill="var(--office-glass-frame)" opacity="0.35">
+            <animate attributeName="opacity" values="0.4;0.2;0.4" dur="5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="240" cy="200" r="10" fill="var(--office-glass-frame)" opacity="0.35">
+            <animate attributeName="opacity" values="0.3;0.55;0.3" dur="4.5s" repeatCount="indefinite" />
+          </circle>
+        </g>
+        <g opacity="0.9">
+          <rect x="1060" y="60" width="280" height="220" rx="6"
+            fill="var(--office-glass)"
+            stroke="var(--office-glass-frame)" strokeWidth="1.5" />
+          <line x1="1200" y1="60" x2="1200" y2="280" stroke="var(--office-glass-frame)" strokeWidth="1" opacity="0.6" />
+          <line x1="1060" y1="170" x2="1340" y2="170" stroke="var(--office-glass-frame)" strokeWidth="0.6" opacity="0.4" />
+          <circle cx="1130" cy="210" r="10" fill="var(--office-glass-frame)" opacity="0.35">
+            <animate attributeName="opacity" values="0.3;0.55;0.3" dur="6s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="1260" cy="210" r="10" fill="var(--office-glass-frame)" opacity="0.35">
+            <animate attributeName="opacity" values="0.45;0.2;0.45" dur="5.5s" repeatCount="indefinite" />
+          </circle>
+        </g>
+        <g transform="translate(380,200)" opacity="0.85">
+          <ellipse cx="20" cy="80" rx="26" ry="6" fill="oklch(0.5 0.05 60)" opacity="0.25" />
+          <rect x="6" y="50" width="28" height="32" rx="3" fill="oklch(0.55 0.06 60)" />
+          <path d="M20 50 C 0 30 6 8 20 0 C 34 8 40 30 20 50 Z" fill="oklch(0.55 0.13 150)" />
+        </g>
+        <g transform="translate(990,200)" opacity="0.85">
+          <ellipse cx="20" cy="80" rx="26" ry="6" fill="oklch(0.5 0.05 60)" opacity="0.25" />
+          <rect x="6" y="50" width="28" height="32" rx="3" fill="oklch(0.55 0.06 60)" />
+          <path d="M20 50 C 0 30 6 8 20 0 C 34 8 40 30 20 50 Z" fill="oklch(0.55 0.13 150)" />
+        </g>
+      </svg>
+
+      {/* Walkers along the back corridor — purely ambient */}
+      <div className="absolute top-[260px] left-0 right-0 h-10 pointer-events-none overflow-hidden -z-10" aria-hidden>
+        <Walker delay="0s" duration="26s" tint="oklch(0.55 0.03 260)" />
+        <Walker delay="9s" duration="32s" tint="oklch(0.5 0.04 280)" />
+        <Walker delay="18s" duration="28s" tint="oklch(0.6 0.03 250)" />
+      </div>
+    </>
+  );
+}
+
+function Walker({ delay, duration, tint }: { delay: string; duration: string; tint: string }) {
+  return (
+    <div
+      className="office-walker absolute top-1"
+      style={{ animationDelay: delay, animationDuration: duration }}
     >
-      <defs>
-        <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="var(--office-wall)" />
-          <stop offset="1" stopColor="var(--office-floor)" />
-        </linearGradient>
-      </defs>
-      <rect width="1400" height="340" fill="url(#wall)" />
-      {/* glass meeting room left */}
-      <g opacity="0.9">
-        <rect x="60" y="60" width="280" height="220" rx="6"
-          fill="var(--office-glass)"
-          stroke="var(--office-glass-frame)" strokeWidth="1.5" />
-        <line x1="200" y1="60" x2="200" y2="280" stroke="var(--office-glass-frame)" strokeWidth="1" opacity="0.6" />
-        <line x1="60" y1="170" x2="340" y2="170" stroke="var(--office-glass-frame)" strokeWidth="0.6" opacity="0.4" />
-      </g>
-      {/* glass meeting room right */}
-      <g opacity="0.9">
-        <rect x="1060" y="60" width="280" height="220" rx="6"
-          fill="var(--office-glass)"
-          stroke="var(--office-glass-frame)" strokeWidth="1.5" />
-        <line x1="1200" y1="60" x2="1200" y2="280" stroke="var(--office-glass-frame)" strokeWidth="1" opacity="0.6" />
-        <line x1="1060" y1="170" x2="1340" y2="170" stroke="var(--office-glass-frame)" strokeWidth="0.6" opacity="0.4" />
-      </g>
-      {/* plant left */}
-      <g transform="translate(380,200)" opacity="0.85">
-        <ellipse cx="20" cy="80" rx="26" ry="6" fill="oklch(0.5 0.05 60)" opacity="0.25" />
-        <rect x="6" y="50" width="28" height="32" rx="3" fill="oklch(0.55 0.06 60)" />
-        <path d="M20 50 C 0 30 6 8 20 0 C 34 8 40 30 20 50 Z" fill="oklch(0.55 0.13 150)" />
-      </g>
-      {/* plant right */}
-      <g transform="translate(990,200)" opacity="0.85">
-        <ellipse cx="20" cy="80" rx="26" ry="6" fill="oklch(0.5 0.05 60)" opacity="0.25" />
-        <rect x="6" y="50" width="28" height="32" rx="3" fill="oklch(0.55 0.06 60)" />
-        <path d="M20 50 C 0 30 6 8 20 0 C 34 8 40 30 20 50 Z" fill="oklch(0.55 0.13 150)" />
-      </g>
-    </svg>
+      <svg width="14" height="32" viewBox="0 0 14 32">
+        <circle cx="7" cy="5" r="4" fill={tint} />
+        <rect x="3" y="10" width="8" height="14" rx="3" fill={tint} />
+        <rect x="3" y="22" width="3" height="8" rx="1" fill={tint} />
+        <rect x="8" y="22" width="3" height="8" rx="1" fill={tint} />
+      </svg>
+    </div>
   );
 }
 
@@ -213,7 +308,6 @@ function Whiteboard({
       className="relative mx-auto rounded-2xl border bg-card/95 backdrop-blur p-5 md:p-6 shadow-office"
       style={{ borderColor: "var(--office-glass-frame)" }}
     >
-      {/* tray markers */}
       <div className="absolute -top-2 left-10 right-10 flex justify-between pointer-events-none">
         <span className="size-2 rounded-full bg-foreground/20" />
         <span className="size-2 rounded-full bg-foreground/20" />
@@ -258,7 +352,7 @@ function Whiteboard({
           </div>
           <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
             {updates.slice(0, 5).map((u, i) => (
-              <div key={i} className="flex gap-2 text-sm">
+              <div key={i} className="flex gap-2 text-sm animate-fade-in">
                 <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 pt-0.5">
                   {u.time}
                 </span>
@@ -269,7 +363,7 @@ function Whiteboard({
           </div>
         </div>
         {lastReaction ? (
-          <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+          <div key={lastReaction} className="rounded-lg border border-primary/25 bg-primary/5 p-3 animate-fade-in">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
               <Sparkles className="size-3.5" /> {t("run.reaction")}
             </div>
@@ -297,7 +391,9 @@ function MetricChip({ metric }: { metric: LiveMetric }) {
   return (
     <div className="rounded-lg border bg-secondary/40 p-2.5">
       <div className="text-[11px] text-muted-foreground truncate">{metric.label}</div>
-      <div className="text-lg font-bold mt-0.5 leading-tight">{metric.value}</div>
+      <div key={metric.value} className="text-lg font-bold mt-0.5 leading-tight office-metric-flip">
+        {metric.value}
+      </div>
       {metric.delta && (
         <div className={`mt-0.5 flex items-center gap-1 text-[10px] ${color}`}>
           <Icon className="size-3" /> {metric.delta}
@@ -311,16 +407,23 @@ function MetricChip({ metric }: { metric: LiveMetric }) {
 function Desk({
   active,
   onSelect,
-  messageCount,
+  unreadMessages,
+  unreadDocs,
+  docsCount,
+  phoneRing,
+  paperPulse,
 }: {
   active: DeskObjectId;
   onSelect: (id: DeskObjectId) => void;
-  messageCount: number;
+  unreadMessages: number;
+  unreadDocs: number;
+  docsCount: number;
+  phoneRing: boolean;
+  paperPulse: boolean;
 }) {
   const { t } = useI18n();
   return (
     <div className="mt-6 relative">
-      {/* desk plane */}
       <div
         className="relative rounded-[28px] px-6 py-5 shadow-office"
         style={{
@@ -336,8 +439,10 @@ function Desk({
             onClick={() => onSelect("docs")}
             label={t("office.docs")}
             ariaLabel={t("office.openDocs")}
+            badge={unreadDocs > 0 ? String(unreadDocs) : undefined}
+            pulseBadge={unreadDocs > 0}
           >
-            <DocsStackSVG />
+            <DocsStackSVG count={docsCount} pulse={paperPulse} />
           </DeskObject>
 
           <DeskObject
@@ -356,9 +461,11 @@ function Desk({
             onClick={() => onSelect("phone")}
             label={t("office.phone")}
             ariaLabel={t("office.openPhone")}
-            badge={messageCount > 0 ? String(messageCount) : undefined}
+            badge={unreadMessages > 0 ? String(unreadMessages) : undefined}
+            pulseBadge={unreadMessages > 0}
+            ringing={phoneRing}
           >
-            <PhoneSVG />
+            <PhoneSVG ringing={phoneRing} />
           </DeskObject>
         </div>
       </div>
@@ -372,6 +479,8 @@ function DeskObject({
   label,
   ariaLabel,
   badge,
+  pulseBadge,
+  ringing,
   children,
 }: {
   id: DeskObjectId;
@@ -380,6 +489,8 @@ function DeskObject({
   label: string;
   ariaLabel: string;
   badge?: string;
+  pulseBadge?: boolean;
+  ringing?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -396,10 +507,20 @@ function DeskObject({
           : "bg-card/70 hover:bg-card shadow-card",
       )}
     >
-      <div className="relative w-full grid place-items-center h-[110px]">
+      <div
+        className={cn(
+          "relative w-full grid place-items-center h-[110px]",
+          ringing && "office-phone-ring",
+        )}
+      >
         {children}
         {badge && (
-          <span className="absolute top-1 right-3 min-w-5 h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center">
+          <span
+            className={cn(
+              "absolute top-1 right-3 min-w-5 h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center",
+              pulseBadge && "office-notif",
+            )}
+          >
             {badge}
           </span>
         )}
@@ -420,7 +541,6 @@ function DeskObject({
 function MacbookSVG() {
   return (
     <svg viewBox="0 0 200 130" className="w-[180px] max-w-full h-auto drop-shadow-md">
-      {/* screen */}
       <rect x="30" y="10" width="140" height="88" rx="6" fill="oklch(0.22 0.02 265)" />
       <rect x="36" y="16" width="128" height="76" rx="3" fill="oklch(0.95 0.02 270)" />
       <rect x="42" y="22" width="60" height="6" rx="2" fill="var(--primary)" opacity="0.7" />
@@ -430,36 +550,63 @@ function MacbookSVG() {
       <rect x="88" y="48" width="40" height="22" rx="2" fill="var(--primary)" opacity="0.25" />
       <rect x="134" y="48" width="24" height="22" rx="2" fill="var(--primary)" opacity="0.45" />
       <rect x="42" y="76" width="116" height="10" rx="2" fill="oklch(0.92 0.01 270)" />
-      {/* base */}
       <rect x="14" y="98" width="172" height="10" rx="3" fill="oklch(0.85 0.01 270)" />
       <rect x="86" y="98" width="28" height="4" rx="2" fill="oklch(0.7 0.02 270)" />
     </svg>
   );
 }
 
-function DocsStackSVG() {
+function DocsStackSVG({ count, pulse }: { count: number; pulse?: boolean }) {
+  // Render up to 5 visible sheets, scale stack by count
+  const sheets = Math.min(5, Math.max(2, count));
+  const arr = Array.from({ length: sheets });
   return (
-    <svg viewBox="0 0 160 120" className="w-[130px] max-w-full h-auto drop-shadow-md">
-      <rect x="20" y="30" width="110" height="78" rx="4" fill="oklch(0.93 0.02 80)" transform="rotate(-6 75 70)" />
-      <rect x="28" y="22" width="110" height="78" rx="4" fill="oklch(0.97 0.01 80)" transform="rotate(4 83 60)" />
-      <rect x="22" y="18" width="110" height="78" rx="4" fill="white" />
-      <rect x="32" y="28" width="60" height="5" rx="2" fill="oklch(0.5 0.03 270)" />
-      <rect x="32" y="40" width="86" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-      <rect x="32" y="48" width="72" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-      <rect x="32" y="56" width="80" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-      <rect x="32" y="72" width="40" height="16" rx="2" fill="var(--primary)" opacity="0.15" />
-      <rect x="78" y="72" width="40" height="16" rx="2" fill="var(--primary)" opacity="0.25" />
+    <svg viewBox="0 0 160 130" className="w-[130px] max-w-full h-auto drop-shadow-md">
+      {arr.map((_, i) => {
+        const offset = i * 3;
+        const rot = (i % 2 === 0 ? -1 : 1) * (3 + i * 0.5);
+        const isTop = i === arr.length - 1;
+        return (
+          <g
+            key={i}
+            transform={`translate(${offset}, ${-offset}) rotate(${rot} 80 65)`}
+            className={isTop && pulse ? "office-paper-new" : undefined}
+            style={{ transformOrigin: "80px 65px" }}
+          >
+            <rect
+              x="22"
+              y="22"
+              width="110"
+              height="80"
+              rx="4"
+              fill={i === arr.length - 1 ? "white" : `oklch(${0.92 + i * 0.01} 0.02 80)`}
+              stroke="oklch(0.85 0.02 80)"
+              strokeWidth="0.5"
+            />
+            {isTop && (
+              <>
+                <rect x="32" y="32" width="60" height="5" rx="2" fill="oklch(0.5 0.03 270)" />
+                <rect x="32" y="44" width="86" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
+                <rect x="32" y="52" width="72" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
+                <rect x="32" y="60" width="80" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
+                <rect x="32" y="76" width="40" height="16" rx="2" fill="var(--primary)" opacity="0.18" />
+                <rect x="78" y="76" width="40" height="16" rx="2" fill="var(--primary)" opacity="0.28" />
+              </>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
 
-function PhoneSVG() {
+function PhoneSVG({ ringing }: { ringing?: boolean }) {
   return (
     <svg viewBox="0 0 100 140" className="w-[70px] max-w-full h-auto drop-shadow-md">
       <rect x="10" y="6" width="80" height="128" rx="14" fill="oklch(0.18 0.02 265)" />
       <rect x="14" y="14" width="72" height="112" rx="8" fill="oklch(0.96 0.01 270)" />
       <rect x="22" y="22" width="56" height="6" rx="2" fill="var(--primary)" opacity="0.7" />
-      <rect x="22" y="34" width="56" height="14" rx="3" fill="oklch(0.93 0.02 270)" />
+      <rect x="22" y="34" width="56" height="14" rx="3" fill={ringing ? "var(--primary)" : "oklch(0.93 0.02 270)"} opacity={ringing ? 0.45 : 1} />
       <rect x="22" y="52" width="56" height="14" rx="3" fill="oklch(0.93 0.02 270)" />
       <rect x="22" y="70" width="56" height="14" rx="3" fill="oklch(0.93 0.02 270)" />
       <circle cx="50" cy="118" r="3" fill="oklch(0.6 0.02 270)" />
@@ -467,7 +614,7 @@ function PhoneSVG() {
   );
 }
 
-/* ---------------- Computer panel (decision) ---------------- */
+/* ---------------- Computer panel (Decision Center) ---------------- */
 function ComputerPanel({
   suggested,
   decision,
@@ -477,6 +624,7 @@ function ComputerPanel({
   step,
   totalSteps,
   lastReaction,
+  history,
 }: {
   suggested: string[];
   decision: string;
@@ -486,72 +634,103 @@ function ComputerPanel({
   step: number;
   totalSteps: number;
   lastReaction: string | null;
+  history: HistoryItem[];
 }) {
   const { t } = useI18n();
   return (
-    <div className="rounded-2xl border bg-card/95 backdrop-blur p-5 md:p-6 shadow-card">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold">{t("run.yourDecision")}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {t("run.yourDecisionSub")} · {t("run.stepOf", { n: step, total: totalSteps })}
-          </p>
-        </div>
+    <div className="rounded-2xl border bg-card/95 backdrop-blur shadow-card overflow-hidden">
+      {/* macOS-style window chrome */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b bg-secondary/60">
+        <span className="size-3 rounded-full bg-[oklch(0.7_0.18_25)]" />
+        <span className="size-3 rounded-full bg-[oklch(0.8_0.16_85)]" />
+        <span className="size-3 rounded-full bg-[oklch(0.7_0.15_145)]" />
+        <span className="mx-auto text-[11px] font-medium text-muted-foreground">
+          {t("office.decisionCenter")} — Step {step}/{totalSteps}
+        </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {suggested.map((a) => (
-          <button
-            key={a}
-            disabled={pending}
-            onClick={() => submit(a)}
-            className={cn(
-              "rounded-lg border px-3 py-2 text-sm text-left transition-all",
-              "hover:border-primary hover:bg-primary/5 hover:text-primary",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-            )}
-          >
-            {a}
-          </button>
-        ))}
-      </div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit(decision);
-        }}
-        className="mt-4 flex gap-2"
-      >
-        <Input
-          value={decision}
-          onChange={(e) => setDecision(e.target.value)}
-          placeholder={t("run.placeholder")}
-          disabled={pending}
-        />
-        <Button
-          type="submit"
-          disabled={pending || !decision.trim()}
-          className="bg-gradient-primary text-primary-foreground shadow-glow"
-        >
-          {pending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <>
-              <Send className="size-4" /> {t("run.submit")}
-            </>
-          )}
-        </Button>
-      </form>
-
-      {lastReaction && (
-        <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <div className="flex items-center gap-2 text-xs font-medium text-primary uppercase tracking-wider">
-            <Sparkles className="size-3.5" /> {t("run.reaction")}
+      <div className="p-5 md:p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold">{t("run.yourDecision")}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t("run.yourDecisionSub")}
+            </p>
           </div>
-          <p className="mt-1.5 text-sm">{lastReaction}</p>
         </div>
-      )}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {suggested.map((a) => (
+            <button
+              key={a}
+              disabled={pending}
+              onClick={() => submit(a)}
+              className={cn(
+                "rounded-lg border px-3 py-2 text-sm text-left transition-all",
+                "hover:border-primary hover:bg-primary/5 hover:text-primary",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+              )}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(decision);
+          }}
+          className="mt-4 flex gap-2"
+        >
+          <Input
+            value={decision}
+            onChange={(e) => setDecision(e.target.value)}
+            placeholder={t("run.placeholder")}
+            disabled={pending}
+          />
+          <Button
+            type="submit"
+            disabled={pending || !decision.trim()}
+            className="bg-gradient-primary text-primary-foreground shadow-glow"
+          >
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <>
+                <Send className="size-4" /> {t("run.submit")}
+              </>
+            )}
+          </Button>
+        </form>
+
+        {lastReaction && (
+          <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4 animate-fade-in">
+            <div className="flex items-center gap-2 text-xs font-medium text-primary uppercase tracking-wider">
+              <Sparkles className="size-3.5" /> {t("run.reaction")}
+            </div>
+            <p className="mt-1.5 text-sm">{lastReaction}</p>
+          </div>
+        )}
+
+        {history.length > 0 && (
+          <div className="mt-6">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              {t("run.history") ?? "Action log"}
+            </div>
+            <ol className="relative border-l border-border/70 pl-4 space-y-3">
+              {history.slice(-5).reverse().map((h, i) => (
+                <li key={`${h.step}-${i}`} className="relative">
+                  <span className="absolute -left-[21px] top-1 size-3 rounded-full bg-primary/80 ring-2 ring-card" />
+                  <div className="text-[11px] font-mono text-muted-foreground">Step {h.step}</div>
+                  <div className="text-sm font-medium">{h.decision}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-snug">{h.reaction}</div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -562,36 +741,53 @@ function DocsPanel({
   step,
   selected,
   setSelected,
+  resources,
+  newCount,
 }: {
   scenario: Scenario;
   step: number;
   selected: string;
   setSelected: (r: string) => void;
+  resources: string[];
+  newCount: number;
 }) {
   const { t } = useI18n();
+  // Mark the last `newCount` items as newly added
+  const newSet = new Set(resources.slice(resources.length - newCount));
   return (
     <div className="rounded-2xl border bg-card/95 backdrop-blur p-5 md:p-6 shadow-card">
-      <h3 className="font-semibold text-sm mb-3">{t("run.resources")}</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-sm">{t("run.resources")}</h3>
+        <span className="text-[11px] text-muted-foreground">
+          {resources.length} / {scenario.resources.length}
+        </span>
+      </div>
       <div className="grid md:grid-cols-2 gap-2">
-        {scenario.resources.map((r) => (
+        {resources.map((r) => (
           <button
             key={r}
             type="button"
             onClick={() => setSelected(r)}
             className={cn(
-              "w-full flex items-center gap-3 rounded-lg border p-3 text-sm text-left transition-all",
+              "relative w-full flex items-center gap-3 rounded-lg border p-3 text-sm text-left transition-all",
               selected === r
                 ? "border-primary bg-primary/5 text-primary"
                 : "hover:border-primary/50 hover:bg-secondary/50",
+              newSet.has(r) && "office-paper-new",
             )}
           >
             <ResourceIcon resource={r} />
-            {r}
+            <span className="flex-1 truncate">{r}</span>
+            {newSet.has(r) && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 rounded px-1.5 py-0.5">
+                new
+              </span>
+            )}
           </button>
         ))}
       </div>
       {selected && (
-        <div className="mt-4 rounded-lg bg-secondary/40 border p-4">
+        <div key={selected} className="mt-4 rounded-lg bg-secondary/40 border p-4 animate-fade-in">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-primary">
             <ClipboardList className="size-3.5" /> {selected}
           </div>
@@ -644,38 +840,131 @@ function resourceDetail(resource: string, scenario: Scenario, step: number) {
   return `${resource}: рабочий артефакт для сценария «${scenario.scenario}». Используй его, чтобы уточнить гипотезу, риски и следующий шаг.`;
 }
 
-/* ---------------- Phone panel ---------------- */
+/* ---------------- Phone panel — realistic smartphone ---------------- */
 function PhonePanel({
   messages,
 }: {
   messages: { from: string; role: string; time: string; text: string }[];
 }) {
   const { t } = useI18n();
+  // Group consecutive messages by sender into threads
+  const threads = useMemo(() => {
+    const map = new Map<string, { from: string; role: string; messages: typeof messages }>();
+    for (const m of messages) {
+      const key = m.from;
+      if (!map.has(key)) map.set(key, { from: m.from, role: m.role, messages: [] });
+      map.get(key)!.messages.push(m);
+    }
+    return Array.from(map.values());
+  }, [messages]);
+
+  const [openThread, setOpenThread] = useState<string | null>(null);
+  const active = threads.find((th) => th.from === openThread) ?? null;
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
   return (
-    <div className="rounded-2xl border bg-card/95 backdrop-blur p-5 md:p-6 shadow-card">
-      <div className="flex items-center gap-2 mb-4 border-b pb-3">
-        <MessageSquare className="size-4 text-primary" />
-        <span className="font-semibold text-sm">{t("run.messages")}</span>
-      </div>
-      <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
-        {messages.map((m, i) => (
-          <div key={i} className="flex gap-3">
-            <div className="size-9 rounded-full bg-gradient-primary text-white grid place-items-center text-xs font-semibold shrink-0">
-              {m.from
-                .split(" ")
-                .map((p) => p[0])
-                .slice(0, 2)
-                .join("")}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="font-medium text-sm">{m.from}</div>
-                <div className="text-[11px] text-muted-foreground">{m.time}</div>
-              </div>
-              <div className="text-sm text-muted-foreground mt-0.5">{m.text}</div>
+    <div className="flex justify-center">
+      <div
+        className="relative w-full max-w-[380px] rounded-[44px] p-3 shadow-office"
+        style={{
+          background: "linear-gradient(180deg, oklch(0.22 0.02 265), oklch(0.14 0.02 265))",
+          border: "1px solid oklch(0.3 0.02 265)",
+        }}
+      >
+        {/* Notch */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-4 h-6 w-32 rounded-full bg-black/80 z-10" />
+
+        <div className="rounded-[34px] overflow-hidden bg-background min-h-[560px] flex flex-col">
+          {/* Status bar */}
+          <div className="flex items-center justify-between px-6 pt-3 pb-2 text-[11px] font-semibold">
+            <span>{timeStr}</span>
+            <div className="flex items-center gap-1 text-foreground/70">
+              <Signal className="size-3" />
+              <Wifi className="size-3" />
+              <Battery className="size-3.5" />
             </div>
           </div>
-        ))}
+
+          {/* Header */}
+          <div className="px-4 pt-3 pb-2 border-b flex items-center justify-between">
+            {active ? (
+              <>
+                <button
+                  onClick={() => setOpenThread(null)}
+                  className="text-primary text-sm font-medium inline-flex items-center gap-1"
+                >
+                  <ArrowLeft className="size-4" /> {t("office.inbox") ?? "Inbox"}
+                </button>
+                <div className="text-sm font-semibold truncate max-w-[60%]">{active.from}</div>
+                <div className="w-10" />
+              </>
+            ) : (
+              <>
+                <div className="text-lg font-bold">{t("run.messages")}</div>
+                <span className="text-[11px] text-muted-foreground">
+                  {messages.length} {(t("office.msgs") ?? "msgs")}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
+            {!active &&
+              threads.map((th, i) => {
+                const last = th.messages[th.messages.length - 1];
+                const initials = th.from.split(" ").map((p) => p[0]).slice(0, 2).join("");
+                return (
+                  <button
+                    key={th.from}
+                    onClick={() => setOpenThread(th.from)}
+                    className="w-full text-left px-4 py-3 border-b hover:bg-secondary/60 transition-colors flex gap-3 items-start animate-fade-in"
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    <div className="size-11 rounded-full bg-gradient-primary text-white grid place-items-center text-sm font-semibold shrink-0">
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold text-sm truncate">{th.from}</div>
+                        <div className="text-[11px] text-muted-foreground shrink-0">{last.time}</div>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">{th.role}</div>
+                      <div className="text-sm text-foreground/80 mt-0.5 line-clamp-2">{last.text}</div>
+                    </div>
+                  </button>
+                );
+              })}
+
+            {active && (
+              <div className="px-4 py-4 space-y-2">
+                <div className="text-center text-[11px] text-muted-foreground py-1">
+                  {active.role}
+                </div>
+                {active.messages.map((m, i) => (
+                  <div key={i} className="flex flex-col items-start animate-fade-in">
+                    <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-secondary px-3 py-2 text-sm">
+                      {m.text}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 ml-1">{m.time}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {messages.length === 0 && (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                {t("office.noMessages") ?? "No messages yet."}
+              </div>
+            )}
+          </div>
+
+          {/* Home indicator */}
+          <div className="py-2 grid place-items-center">
+            <div className="h-1 w-28 rounded-full bg-foreground/30" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -684,7 +973,6 @@ function PhonePanel({
 /* ---------------- Office clock ---------------- */
 function OfficeClock({ step, totalSteps }: { step: number; totalSteps: number }) {
   const { t } = useI18n();
-  // ~25 in-fiction min per step, work day 09:00 → next workday after 8h
   const minutes = (step - 1) * 25;
   const dayIndex = Math.floor(minutes / (60 * 8));
   const dayOffset = minutes % (60 * 8);

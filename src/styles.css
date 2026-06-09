@@ -171,3 +171,42 @@
 @utility bg-office-desk { background-color: var(--office-desk); }
 @utility bg-office-glass { background-color: var(--office-glass); }
 @utility shadow-office { box-shadow: var(--shadow-office, var(--office-shadow)); }
+
+/* Office Mode — interactive object animations */
+@keyframes office-notif-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.62 0.22 25 / 0.55); }
+  50%      { box-shadow: 0 0 0 8px oklch(0.62 0.22 25 / 0); }
+}
+@keyframes office-ring-shake {
+  0%, 100% { transform: rotate(0); }
+  20%      { transform: rotate(-6deg); }
+  40%      { transform: rotate(6deg); }
+  60%      { transform: rotate(-4deg); }
+  80%      { transform: rotate(3deg); }
+}
+@keyframes office-paper-add {
+  0%   { transform: translateY(-14px) rotate(-4deg); opacity: 0; }
+  60%  { transform: translateY(2px) rotate(2deg);    opacity: 1; }
+  100% { transform: translateY(0) rotate(0);         opacity: 1; }
+}
+@keyframes office-screen-on {
+  0%   { transform: perspective(900px) rotateX(-70deg); transform-origin: bottom; opacity: 0; }
+  60%  { transform: perspective(900px) rotateX(5deg);   opacity: 1; }
+  100% { transform: perspective(900px) rotateX(0);      opacity: 1; }
+}
+@keyframes office-walk {
+  0%   { transform: translateX(-30px); opacity: 0; }
+  10%  { opacity: 0.55; }
+  90%  { opacity: 0.55; }
+  100% { transform: translateX(420px); opacity: 0; }
+}
+@keyframes office-metric-flip {
+  0%   { transform: translateY(-6px); opacity: 0; filter: blur(2px); }
+  100% { transform: translateY(0);    opacity: 1; filter: blur(0);   }
+}
+.office-notif { animation: office-notif-pulse 1.8s ease-out infinite; }
+.office-phone-ring { animation: office-ring-shake 0.9s ease-in-out 2; transform-origin: 50% 20%; }
+.office-paper-new { animation: office-paper-add 0.55s cubic-bezier(.2,.9,.3,1.1); }
+.office-screen-on { animation: office-screen-on 0.55s cubic-bezier(.2,.9,.3,1.05); transform-origin: bottom; }
+.office-metric-flip { animation: office-metric-flip 0.4s ease-out; }
+.office-walker { animation: office-walk 22s linear infinite; }
