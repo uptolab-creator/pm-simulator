@@ -17,12 +17,20 @@ import {
   Wifi,
   Battery,
   Signal,
+  X,
+  Laptop,
+  Smartphone,
+  Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { Scenario } from "@/lib/scenarios";
+import officeBg from "@/assets/office-bg.jpg";
+import laptopImg from "@/assets/office-laptop.png";
+import phoneImg from "@/assets/office-phone.png";
+import docsImg from "@/assets/office-docs.png";
 
 type LiveMetric = { label: string; value: string; delta?: string; trend?: "up" | "down" | "flat" };
 type HistoryItem = { step: number; decision: string; reaction: string };
@@ -46,15 +54,14 @@ export interface OfficeViewProps {
   viewToggle: ReactNode;
 }
 
-type DeskObjectId = "computer" | "docs" | "phone";
+type ModalId = null | "computer" | "phone" | "docs" | "whiteboard";
 
 export function OfficeView(props: OfficeViewProps) {
   const { t, tRole } = useI18n();
   const navigate = useNavigate();
-  const [active, setActive] = useState<DeskObjectId>("computer");
+  const [open, setOpen] = useState<ModalId>(null);
   const { scenario, step, totalSteps } = props;
 
-  // Progressive resource reveal (paper stack grows with step)
   const visibleResourceCount = Math.min(
     scenario.resources.length,
     Math.max(2, step + 1),
@@ -64,7 +71,7 @@ export function OfficeView(props: OfficeViewProps) {
     [scenario.resources, visibleResourceCount],
   );
 
-  // Track unread + new arrivals
+  // unread tracking
   const [seenMessages, setSeenMessages] = useState(props.messages.length);
   const [seenDocs, setSeenDocs] = useState(visibleResourceCount);
   const [phoneRing, setPhoneRing] = useState(false);
@@ -85,103 +92,137 @@ export function OfficeView(props: OfficeViewProps) {
   useEffect(() => {
     if (visibleResourceCount > prevDocRef.current) {
       setPaperPulse(true);
-      const t = setTimeout(() => setPaperPulse(false), 700);
+      const t = setTimeout(() => setPaperPulse(false), 1200);
       prevDocRef.current = visibleResourceCount;
       return () => clearTimeout(t);
     }
     prevDocRef.current = visibleResourceCount;
   }, [visibleResourceCount]);
 
-  // Mark read on focus
   useEffect(() => {
-    if (active === "phone") setSeenMessages(props.messages.length);
-    if (active === "docs") setSeenDocs(visibleResourceCount);
-  }, [active, props.messages.length, visibleResourceCount]);
+    if (open === "phone") setSeenMessages(props.messages.length);
+    if (open === "docs") setSeenDocs(visibleResourceCount);
+  }, [open, props.messages.length, visibleResourceCount]);
 
   const unreadMessages = Math.max(0, props.messages.length - seenMessages);
   const unreadDocs = Math.max(0, visibleResourceCount - seenDocs);
 
+  // ESC closes modal
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-office-floor">
+    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
+      {/* Photoreal office backdrop */}
       <div
-        className="absolute inset-0 -z-10"
-        style={{ background: "var(--office-daylight)" }}
+        className="absolute inset-0 -z-10 bg-cover bg-center"
+        style={{ backgroundImage: `url(${officeBg})` }}
         aria-hidden
       />
-      <BackOfficeScene />
+      {/* warm vignette for depth */}
+      <div
+        className="absolute inset-0 -z-10 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 90%, transparent 30%, rgba(0,0,0,0.45) 90%)",
+        }}
+        aria-hidden
+      />
 
-      <div className="relative px-4 md:px-8 lg:px-12 py-5 max-w-[1400px] mx-auto">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-3 justify-between mb-5">
+      {/* Top translucent bar */}
+      <div className="relative z-10 px-4 md:px-8 lg:px-12 py-4">
+        <div className="flex flex-wrap items-center gap-3 justify-between rounded-2xl bg-black/35 backdrop-blur-md text-white px-4 py-2.5 border border-white/10 shadow-xl">
           <Link
             to="/simulations"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground gap-1"
+            className="inline-flex items-center text-sm text-white/80 hover:text-white gap-1"
           >
             <ArrowLeft className="size-4" /> {t("card.backToSims")}
           </Link>
           <div className="text-sm font-medium">
             {tRole(scenario.role)} {t("run.simulationSuffix")} ·{" "}
-            <span className="text-muted-foreground">
+            <span className="text-white/60">
               {t("run.stepOf", { n: step, total: totalSteps })}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {props.viewToggle}
             <OfficeClock step={step} totalSteps={totalSteps} />
-            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/simulations" })}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate({ to: "/simulations" })}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+            >
               {t("run.end")}
             </Button>
           </div>
         </div>
+      </div>
 
-        <Whiteboard
-          scenario={scenario}
-          metrics={props.metrics}
-          updates={props.updates}
-          lastReaction={props.lastReaction}
-        />
+      {/* Stage: positioned overlays on the photoreal scene */}
+      <div className="relative w-full" style={{ aspectRatio: "16 / 9", minHeight: 520 }}>
+        {/* Whiteboard handwritten overlay — anchored on the whiteboard area of the bg */}
+        <button
+          type="button"
+          onClick={() => setOpen("whiteboard")}
+          className="absolute group cursor-pointer text-left"
+          style={{ left: "29%", top: "22%", width: "42%", height: "44%" }}
+          aria-label={t("office.whiteboard")}
+        >
+          <WhiteboardWriting scenario={scenario} metrics={props.metrics} step={step} />
+          <span className="absolute inset-0 rounded-md ring-0 group-hover:ring-2 ring-amber-300/50 transition" />
+        </button>
 
-        <Desk
-          active={active}
-          onSelect={setActive}
-          unreadMessages={unreadMessages}
-          unreadDocs={unreadDocs}
-          docsCount={visibleResourceCount}
-          phoneRing={phoneRing}
-          paperPulse={paperPulse}
-        />
+        {/* Desk objects row — bottom area of the photo */}
+        <div className="absolute inset-x-0 bottom-0 h-[42%] pointer-events-none">
+          {/* Docs (left) */}
+          <DeskPhotoObject
+            style={{ left: "8%", bottom: "8%", width: "22%" }}
+            src={docsImg}
+            label={t("office.docs")}
+            ariaLabel={t("office.openDocs")}
+            onClick={() => setOpen("docs")}
+            badge={unreadDocs > 0 ? String(unreadDocs) : undefined}
+            pulseBadge={paperPulse || unreadDocs > 0}
+            tiltDeg={-4}
+            count={visibleResourceCount}
+          />
 
-        <div className="mt-5">
-          {active === "computer" && (
-            <div className="office-screen-on" key={`pc-${step}`}>
-              <ComputerPanel
-                suggested={props.suggested}
-                decision={props.decision}
-                setDecision={props.setDecision}
-                pending={props.pending}
-                submit={props.submit}
-                step={step}
-                totalSteps={totalSteps}
-                lastReaction={props.lastReaction}
-                history={props.history}
-              />
-            </div>
-          )}
-          {active === "docs" && (
-            <DocsPanel
-              scenario={scenario}
-              step={step}
-              selected={props.selectedResource}
-              setSelected={props.setSelectedResource}
-              resources={visibleResources}
-              newCount={unreadDocs}
-            />
-          )}
-          {active === "phone" && <PhonePanel messages={props.messages} />}
+          {/* Laptop (center) */}
+          <DeskPhotoObject
+            style={{ left: "36%", bottom: "2%", width: "30%" }}
+            src={laptopImg}
+            label={t("office.computer")}
+            ariaLabel={t("office.openComputer")}
+            onClick={() => setOpen("computer")}
+            tiltDeg={0}
+            glow
+          />
+
+          {/* Phone (right) */}
+          <DeskPhotoObject
+            style={{ right: "8%", bottom: "6%", width: "13%" }}
+            src={phoneImg}
+            label={t("office.phone")}
+            ariaLabel={t("office.openPhone")}
+            onClick={() => setOpen("phone")}
+            badge={unreadMessages > 0 ? String(unreadMessages) : undefined}
+            pulseBadge={unreadMessages > 0}
+            ringing={phoneRing}
+            tiltDeg={2}
+          />
         </div>
+      </div>
 
-        <div className="mt-5 rounded-xl border bg-card/80 backdrop-blur p-4 shadow-card">
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+      {/* Bottom timeline strip */}
+      <div className="relative z-10 px-4 md:px-8 lg:px-12 pb-6 -mt-4">
+        <div className="rounded-2xl bg-black/35 backdrop-blur-md border border-white/10 text-white px-4 py-3 shadow-xl">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-white/60 mb-1.5">
             {t("run.timeline")}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -189,10 +230,10 @@ export function OfficeView(props: OfficeViewProps) {
               <div
                 key={n}
                 className={cn(
-                  "size-7 rounded-full grid place-items-center text-[11px] font-semibold border transition-all",
+                  "size-6 rounded-full grid place-items-center text-[11px] font-semibold border transition-all",
                   n < step && "bg-primary text-primary-foreground border-primary",
-                  n === step && "bg-primary/15 text-primary border-primary ring-2 ring-primary/30",
-                  n > step && "bg-secondary text-muted-foreground border-border",
+                  n === step && "bg-primary/25 text-white border-primary ring-2 ring-primary/50",
+                  n > step && "bg-white/5 text-white/50 border-white/20",
                 )}
               >
                 {n}
@@ -201,97 +242,294 @@ export function OfficeView(props: OfficeViewProps) {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {open === "computer" && (
+        <ObjectModal onClose={() => setOpen(null)} anim="laptop" label={t("office.computer")} wide>
+          <ComputerPanel
+            suggested={props.suggested}
+            decision={props.decision}
+            setDecision={props.setDecision}
+            pending={props.pending}
+            submit={(t) => {
+              props.submit(t);
+            }}
+            step={step}
+            totalSteps={totalSteps}
+            lastReaction={props.lastReaction}
+            history={props.history}
+          />
+        </ObjectModal>
+      )}
+      {open === "phone" && (
+        <ObjectModal onClose={() => setOpen(null)} anim="phone" label={t("office.phone")}>
+          <PhonePanel messages={props.messages} />
+        </ObjectModal>
+      )}
+      {open === "docs" && (
+        <ObjectModal onClose={() => setOpen(null)} anim="docs" label={t("office.docs")} wide>
+          <DocsPanel
+            scenario={scenario}
+            step={step}
+            selected={props.selectedResource}
+            setSelected={props.setSelectedResource}
+            resources={visibleResources}
+            newCount={unreadDocs}
+          />
+        </ObjectModal>
+      )}
+      {open === "whiteboard" && (
+        <ObjectModal onClose={() => setOpen(null)} anim="whiteboard" label={t("office.whiteboard")} wide>
+          <WhiteboardFull
+            scenario={scenario}
+            metrics={props.metrics}
+            updates={props.updates}
+            lastReaction={props.lastReaction}
+          />
+        </ObjectModal>
+      )}
     </div>
   );
 }
 
-/* ---------------- Background scene ---------------- */
-function BackOfficeScene() {
+/* ---------------- Modal wrapper with per-object entry animation ---------------- */
+function ObjectModal({
+  onClose,
+  anim,
+  label,
+  wide,
+  children,
+}: {
+  onClose: () => void;
+  anim: "laptop" | "phone" | "docs" | "whiteboard";
+  label: string;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  const animClass =
+    anim === "laptop"
+      ? "office-laptop-open"
+      : anim === "phone"
+      ? "office-phone-lift"
+      : anim === "docs"
+      ? "office-docs-fan"
+      : "office-handwrite";
+
   return (
-    <>
-      <svg
-        className="absolute inset-x-0 top-0 -z-10 w-full h-[340px] pointer-events-none"
-        viewBox="0 0 1400 340"
-        preserveAspectRatio="xMidYMin slice"
-        aria-hidden
+    <div className="fixed inset-0 z-50 grid place-items-center px-4 py-6">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 office-backdrop-in"
+      />
+      {anim === "docs" && <FanningSheets />}
+      <div
+        className={cn(
+          "relative w-full",
+          wide ? "max-w-4xl" : "max-w-md",
+          animClass,
+        )}
       >
-        <defs>
-          <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="var(--office-wall)" />
-            <stop offset="1" stopColor="var(--office-floor)" />
-          </linearGradient>
-        </defs>
-        <rect width="1400" height="340" fill="url(#wall)" />
-        <g opacity="0.9">
-          <rect x="60" y="60" width="280" height="220" rx="6"
-            fill="var(--office-glass)"
-            stroke="var(--office-glass-frame)" strokeWidth="1.5" />
-          <line x1="200" y1="60" x2="200" y2="280" stroke="var(--office-glass-frame)" strokeWidth="1" opacity="0.6" />
-          <line x1="60" y1="170" x2="340" y2="170" stroke="var(--office-glass-frame)" strokeWidth="0.6" opacity="0.4" />
-          {/* meeting silhouettes */}
-          <circle cx="120" cy="200" r="10" fill="var(--office-glass-frame)" opacity="0.35">
-            <animate attributeName="opacity" values="0.25;0.5;0.25" dur="4s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="170" cy="205" r="10" fill="var(--office-glass-frame)" opacity="0.35">
-            <animate attributeName="opacity" values="0.4;0.2;0.4" dur="5s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="240" cy="200" r="10" fill="var(--office-glass-frame)" opacity="0.35">
-            <animate attributeName="opacity" values="0.3;0.55;0.3" dur="4.5s" repeatCount="indefinite" />
-          </circle>
-        </g>
-        <g opacity="0.9">
-          <rect x="1060" y="60" width="280" height="220" rx="6"
-            fill="var(--office-glass)"
-            stroke="var(--office-glass-frame)" strokeWidth="1.5" />
-          <line x1="1200" y1="60" x2="1200" y2="280" stroke="var(--office-glass-frame)" strokeWidth="1" opacity="0.6" />
-          <line x1="1060" y1="170" x2="1340" y2="170" stroke="var(--office-glass-frame)" strokeWidth="0.6" opacity="0.4" />
-          <circle cx="1130" cy="210" r="10" fill="var(--office-glass-frame)" opacity="0.35">
-            <animate attributeName="opacity" values="0.3;0.55;0.3" dur="6s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="1260" cy="210" r="10" fill="var(--office-glass-frame)" opacity="0.35">
-            <animate attributeName="opacity" values="0.45;0.2;0.45" dur="5.5s" repeatCount="indefinite" />
-          </circle>
-        </g>
-        <g transform="translate(380,200)" opacity="0.85">
-          <ellipse cx="20" cy="80" rx="26" ry="6" fill="oklch(0.5 0.05 60)" opacity="0.25" />
-          <rect x="6" y="50" width="28" height="32" rx="3" fill="oklch(0.55 0.06 60)" />
-          <path d="M20 50 C 0 30 6 8 20 0 C 34 8 40 30 20 50 Z" fill="oklch(0.55 0.13 150)" />
-        </g>
-        <g transform="translate(990,200)" opacity="0.85">
-          <ellipse cx="20" cy="80" rx="26" ry="6" fill="oklch(0.5 0.05 60)" opacity="0.25" />
-          <rect x="6" y="50" width="28" height="32" rx="3" fill="oklch(0.55 0.06 60)" />
-          <path d="M20 50 C 0 30 6 8 20 0 C 34 8 40 30 20 50 Z" fill="oklch(0.55 0.13 150)" />
-        </g>
-      </svg>
-
-      {/* Walkers along the back corridor — purely ambient */}
-      <div className="absolute top-[260px] left-0 right-0 h-10 pointer-events-none overflow-hidden -z-10" aria-hidden>
-        <Walker delay="0s" duration="26s" tint="oklch(0.55 0.03 260)" />
-        <Walker delay="9s" duration="32s" tint="oklch(0.5 0.04 280)" />
-        <Walker delay="18s" duration="28s" tint="oklch(0.6 0.03 250)" />
+        <div className="rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b bg-secondary/50">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {label}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="size-7 rounded-md grid place-items-center hover:bg-secondary text-muted-foreground hover:text-foreground"
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="max-h-[78vh] overflow-y-auto">{children}</div>
+        </div>
       </div>
-    </>
-  );
-}
-
-function Walker({ delay, duration, tint }: { delay: string; duration: string; tint: string }) {
-  return (
-    <div
-      className="office-walker absolute top-1"
-      style={{ animationDelay: delay, animationDuration: duration }}
-    >
-      <svg width="14" height="32" viewBox="0 0 14 32">
-        <circle cx="7" cy="5" r="4" fill={tint} />
-        <rect x="3" y="10" width="8" height="14" rx="3" fill={tint} />
-        <rect x="3" y="22" width="3" height="8" rx="1" fill={tint} />
-        <rect x="8" y="22" width="3" height="8" rx="1" fill={tint} />
-      </svg>
     </div>
   );
 }
 
-/* ---------------- Whiteboard ---------------- */
-function Whiteboard({
+/* Decorative fanning sheets behind the docs modal */
+function FanningSheets() {
+  return (
+    <div className="absolute inset-0 pointer-events-none grid place-items-center" aria-hidden>
+      {[-18, -8, 0, 9, 19].map((deg, i) => (
+        <div
+          key={i}
+          className="absolute w-[260px] h-[340px] rounded bg-[oklch(0.98_0.01_80)] shadow-2xl office-sheet-deal"
+          style={
+            {
+              "--r-from": `${deg - 8}deg`,
+              "--r-to": `${deg}deg`,
+              animationDelay: `${i * 60}ms`,
+              transform: `rotate(${deg}deg)`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- Photoreal desk object ---------------- */
+function DeskPhotoObject({
+  style,
+  src,
+  label,
+  ariaLabel,
+  onClick,
+  badge,
+  pulseBadge,
+  ringing,
+  tiltDeg = 0,
+  glow,
+  count,
+}: {
+  style: React.CSSProperties;
+  src: string;
+  label: string;
+  ariaLabel: string;
+  onClick: () => void;
+  badge?: string;
+  pulseBadge?: boolean;
+  ringing?: boolean;
+  tiltDeg?: number;
+  glow?: boolean;
+  count?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="absolute pointer-events-auto group focus:outline-none"
+      style={style}
+    >
+      <div
+        className={cn(
+          "relative transition-transform duration-300 group-hover:-translate-y-2 group-hover:scale-[1.04] office-bob",
+          ringing && "office-phone-ring",
+        )}
+        style={{ transform: `rotate(${tiltDeg}deg)` }}
+      >
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          className={cn(
+            "w-full h-auto select-none",
+            "drop-shadow-[0_25px_25px_rgba(0,0,0,0.55)]",
+            glow && "group-hover:drop-shadow-[0_0_30px_rgba(99,102,241,0.55)]",
+          )}
+          style={{ filter: "contrast(1.02)" }}
+        />
+        {count !== undefined && count > 0 && (
+          <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-mono backdrop-blur-sm">
+            {count}
+          </span>
+        )}
+        {badge && (
+          <span
+            className={cn(
+              "absolute -top-1 -right-1 min-w-6 h-6 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold grid place-items-center shadow-lg",
+              pulseBadge && "office-notif",
+            )}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
+      <div className="absolute left-1/2 -translate-x-1/2 -bottom-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <span className="text-[11px] font-medium text-white bg-black/70 backdrop-blur px-2 py-0.5 rounded-md whitespace-nowrap">
+          {label}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+/* ---------------- Handwritten whiteboard preview (on photo bg) ---------------- */
+function WhiteboardWriting({
+  scenario,
+  metrics,
+  step,
+}: {
+  scenario: Scenario;
+  metrics: LiveMetric[];
+  step: number;
+}) {
+  return (
+    <div className="absolute inset-0 p-[6%] text-[oklch(0.25_0.04_260)]">
+      <div className="grid grid-cols-2 gap-[4%] h-full">
+        <div className="office-handwrite" style={{ animationDelay: "60ms" }}>
+          <div className="font-marker text-[clamp(11px,1.2vw,18px)] tracking-wide text-[oklch(0.45_0.18_260)] uppercase">
+            Scenario
+          </div>
+          <div
+            className="font-handwriting font-bold leading-[1.05] mt-1 text-[clamp(14px,1.7vw,28px)]"
+            style={{ color: "oklch(0.2 0.04 260)" }}
+          >
+            {scenario.scenario}
+          </div>
+          <div
+            className="font-handwriting mt-2 text-[clamp(12px,1.3vw,20px)] leading-snug"
+            style={{ color: "oklch(0.3 0.03 260)" }}
+          >
+            {scenario.companyGoal}
+          </div>
+        </div>
+        <div className="office-handwrite" style={{ animationDelay: "220ms" }}>
+          <div className="font-marker text-[clamp(11px,1.2vw,18px)] tracking-wide uppercase text-[oklch(0.5_0.2_25)]">
+            Key Metrics
+          </div>
+          <div className="mt-1 font-handwriting text-[clamp(12px,1.3vw,20px)] leading-tight space-y-0.5">
+            {metrics.slice(0, 4).map((m) => (
+              <div key={m.label} className="flex items-baseline gap-2">
+                <span className="text-[oklch(0.3_0.03_260)] flex-1 truncate">{m.label}</span>
+                <span className="font-bold text-[oklch(0.2_0.04_260)]">{m.value}</span>
+                {m.delta && (
+                  <span
+                    className={cn(
+                      "text-[0.85em]",
+                      m.trend === "down" && "text-[oklch(0.5_0.22_25)]",
+                      m.trend === "up" && "text-[oklch(0.5_0.18_145)]",
+                    )}
+                  >
+                    {m.delta}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div
+            className="mt-2 font-handwriting text-[clamp(11px,1.2vw,18px)] italic"
+            style={{ color: "oklch(0.4 0.03 260)" }}
+          >
+            Step {step} · focus on root cause
+          </div>
+        </div>
+      </div>
+      {/* sticky note */}
+      <div
+        className="absolute font-handwriting text-[clamp(10px,1vw,14px)] leading-tight rotate-[5deg] shadow-md p-2 w-[18%]"
+        style={{
+          right: "4%",
+          bottom: "6%",
+          background: "oklch(0.95 0.13 95)",
+          color: "oklch(0.25 0.05 80)",
+        }}
+      >
+        Focus on the root cause ★
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Whiteboard full modal ---------------- */
+function WhiteboardFull({
   scenario,
   metrics,
   updates,
@@ -304,313 +542,74 @@ function Whiteboard({
 }) {
   const { t } = useI18n();
   return (
-    <div
-      className="relative mx-auto rounded-2xl border bg-card/95 backdrop-blur p-5 md:p-6 shadow-office"
-      style={{ borderColor: "var(--office-glass-frame)" }}
-    >
-      <div className="absolute -top-2 left-10 right-10 flex justify-between pointer-events-none">
-        <span className="size-2 rounded-full bg-foreground/20" />
-        <span className="size-2 rounded-full bg-foreground/20" />
-      </div>
-
-      <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-        <ClipboardList className="size-3.5" /> {t("office.whiteboard")}
-      </div>
-
-      <div className="mt-3 grid md:grid-cols-[1.5fr_1fr] gap-4">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="p-6 md:p-8 bg-[oklch(0.98_0.005_90)] text-[oklch(0.2_0.04_260)]">
+      <div className="grid md:grid-cols-[1.4fr_1fr] gap-6">
+        <div className="office-handwrite">
+          <div className="font-marker text-sm uppercase text-[oklch(0.45_0.18_260)]">
             {t("office.scenario")}
           </div>
-          <h2 className="mt-1 text-xl md:text-2xl font-bold tracking-tight leading-tight">
+          <h2 className="font-handwriting font-bold text-3xl md:text-4xl leading-tight mt-1">
             {scenario.scenario}
           </h2>
+          <p className="font-handwriting text-xl mt-3 text-[oklch(0.32_0.03_260)]">
+            {scenario.companyGoal}
+          </p>
         </div>
-        <div className="rounded-lg bg-secondary/70 p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("office.goal")}
+        <div className="office-handwrite" style={{ animationDelay: "120ms" }}>
+          <div className="font-marker text-sm uppercase text-[oklch(0.5_0.2_25)]">
+            {t("office.metrics")}
           </div>
-          <div className="mt-1 text-sm font-medium">{scenario.companyGoal}</div>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {t("office.metrics")}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          {metrics.map((m) => (
-            <MetricChip key={m.label} metric={m} />
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 grid md:grid-cols-[1fr_1fr] gap-4">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            {t("office.events")}
-          </div>
-          <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
-            {updates.slice(0, 5).map((u, i) => (
-              <div key={i} className="flex gap-2 text-sm animate-fade-in">
-                <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 pt-0.5">
-                  {u.time}
-                </span>
-                <span className="size-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                <span className="text-foreground leading-snug">{u.text}</span>
+          <div className="mt-2 font-handwriting text-xl space-y-1">
+            {metrics.map((m) => (
+              <div key={m.label} className="flex items-baseline gap-3">
+                <span className="flex-1">{m.label}</span>
+                <span className="font-bold">{m.value}</span>
+                {m.delta && (
+                  <span
+                    className={cn(
+                      m.trend === "down" && "text-[oklch(0.5_0.22_25)]",
+                      m.trend === "up" && "text-[oklch(0.5_0.18_145)]",
+                    )}
+                  >
+                    {m.delta}
+                  </span>
+                )}
               </div>
             ))}
           </div>
         </div>
-        {lastReaction ? (
-          <div key={lastReaction} className="rounded-lg border border-primary/25 bg-primary/5 p-3 animate-fade-in">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
-              <Sparkles className="size-3.5" /> {t("run.reaction")}
-            </div>
-            <p className="mt-1 text-sm leading-snug">{lastReaction}</p>
+      </div>
+      <div className="mt-6 grid md:grid-cols-2 gap-6">
+        <div className="office-handwrite" style={{ animationDelay: "200ms" }}>
+          <div className="font-marker text-sm uppercase text-[oklch(0.4_0.18_180)]">
+            {t("office.events")}
           </div>
-        ) : (
-          <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground self-start">
-            {t("run.yourDecisionSub")}
+          <ul className="mt-2 font-handwriting text-lg space-y-1">
+            {updates.slice(0, 6).map((u, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="font-mono text-base text-[oklch(0.45_0.03_260)] w-14 shrink-0">
+                  {u.time}
+                </span>
+                <span>{u.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {lastReaction && (
+          <div
+            className="office-handwrite p-3 rotate-[-1deg] shadow-md"
+            style={{
+              animationDelay: "320ms",
+              background: "oklch(0.95 0.13 95)",
+              color: "oklch(0.25 0.05 80)",
+            }}
+          >
+            <div className="font-marker text-xs uppercase">{t("run.reaction")}</div>
+            <p className="font-handwriting text-lg leading-snug mt-1">{lastReaction}</p>
           </div>
         )}
       </div>
     </div>
-  );
-}
-
-function MetricChip({ metric }: { metric: LiveMetric }) {
-  const Icon =
-    metric.trend === "down" ? TrendingDown : metric.trend === "up" ? TrendingUp : Minus;
-  const color =
-    metric.trend === "down"
-      ? "text-destructive"
-      : metric.trend === "up"
-      ? "text-success"
-      : "text-muted-foreground";
-  return (
-    <div className="rounded-lg border bg-secondary/40 p-2.5">
-      <div className="text-[11px] text-muted-foreground truncate">{metric.label}</div>
-      <div key={metric.value} className="text-lg font-bold mt-0.5 leading-tight office-metric-flip">
-        {metric.value}
-      </div>
-      {metric.delta && (
-        <div className={`mt-0.5 flex items-center gap-1 text-[10px] ${color}`}>
-          <Icon className="size-3" /> {metric.delta}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ---------------- Desk ---------------- */
-function Desk({
-  active,
-  onSelect,
-  unreadMessages,
-  unreadDocs,
-  docsCount,
-  phoneRing,
-  paperPulse,
-}: {
-  active: DeskObjectId;
-  onSelect: (id: DeskObjectId) => void;
-  unreadMessages: number;
-  unreadDocs: number;
-  docsCount: number;
-  phoneRing: boolean;
-  paperPulse: boolean;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="mt-6 relative">
-      <div
-        className="relative rounded-[28px] px-6 py-5 shadow-office"
-        style={{
-          background:
-            "linear-gradient(180deg, var(--office-desk) 0%, var(--office-desk-edge) 100%)",
-          border: "1px solid var(--office-desk-edge)",
-        }}
-      >
-        <div className="grid grid-cols-3 gap-4 items-end">
-          <DeskObject
-            id="docs"
-            active={active === "docs"}
-            onClick={() => onSelect("docs")}
-            label={t("office.docs")}
-            ariaLabel={t("office.openDocs")}
-            badge={unreadDocs > 0 ? String(unreadDocs) : undefined}
-            pulseBadge={unreadDocs > 0}
-          >
-            <DocsStackSVG count={docsCount} pulse={paperPulse} />
-          </DeskObject>
-
-          <DeskObject
-            id="computer"
-            active={active === "computer"}
-            onClick={() => onSelect("computer")}
-            label={t("office.computer")}
-            ariaLabel={t("office.openComputer")}
-          >
-            <MacbookSVG />
-          </DeskObject>
-
-          <DeskObject
-            id="phone"
-            active={active === "phone"}
-            onClick={() => onSelect("phone")}
-            label={t("office.phone")}
-            ariaLabel={t("office.openPhone")}
-            badge={unreadMessages > 0 ? String(unreadMessages) : undefined}
-            pulseBadge={unreadMessages > 0}
-            ringing={phoneRing}
-          >
-            <PhoneSVG ringing={phoneRing} />
-          </DeskObject>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DeskObject({
-  active,
-  onClick,
-  label,
-  ariaLabel,
-  badge,
-  pulseBadge,
-  ringing,
-  children,
-}: {
-  id: DeskObjectId;
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  ariaLabel: string;
-  badge?: string;
-  pulseBadge?: boolean;
-  ringing?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={ariaLabel}
-      aria-pressed={active}
-      className={cn(
-        "group relative flex flex-col items-center gap-2 rounded-2xl px-3 py-3 transition-all",
-        "hover:-translate-y-0.5",
-        active
-          ? "bg-card shadow-glow ring-2 ring-primary/40"
-          : "bg-card/70 hover:bg-card shadow-card",
-      )}
-    >
-      <div
-        className={cn(
-          "relative w-full grid place-items-center h-[110px]",
-          ringing && "office-phone-ring",
-        )}
-      >
-        {children}
-        {badge && (
-          <span
-            className={cn(
-              "absolute top-1 right-3 min-w-5 h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center",
-              pulseBadge && "office-notif",
-            )}
-          >
-            {badge}
-          </span>
-        )}
-      </div>
-      <span
-        className={cn(
-          "text-xs font-semibold",
-          active ? "text-primary" : "text-foreground/70",
-        )}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
-/* ---------------- Illustrations ---------------- */
-function MacbookSVG() {
-  return (
-    <svg viewBox="0 0 200 130" className="w-[180px] max-w-full h-auto drop-shadow-md">
-      <rect x="30" y="10" width="140" height="88" rx="6" fill="oklch(0.22 0.02 265)" />
-      <rect x="36" y="16" width="128" height="76" rx="3" fill="oklch(0.95 0.02 270)" />
-      <rect x="42" y="22" width="60" height="6" rx="2" fill="var(--primary)" opacity="0.7" />
-      <rect x="42" y="32" width="116" height="3" rx="1" fill="oklch(0.7 0.02 270)" />
-      <rect x="42" y="38" width="92" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-      <rect x="42" y="48" width="40" height="22" rx="2" fill="var(--primary)" opacity="0.15" />
-      <rect x="88" y="48" width="40" height="22" rx="2" fill="var(--primary)" opacity="0.25" />
-      <rect x="134" y="48" width="24" height="22" rx="2" fill="var(--primary)" opacity="0.45" />
-      <rect x="42" y="76" width="116" height="10" rx="2" fill="oklch(0.92 0.01 270)" />
-      <rect x="14" y="98" width="172" height="10" rx="3" fill="oklch(0.85 0.01 270)" />
-      <rect x="86" y="98" width="28" height="4" rx="2" fill="oklch(0.7 0.02 270)" />
-    </svg>
-  );
-}
-
-function DocsStackSVG({ count, pulse }: { count: number; pulse?: boolean }) {
-  // Render up to 5 visible sheets, scale stack by count
-  const sheets = Math.min(5, Math.max(2, count));
-  const arr = Array.from({ length: sheets });
-  return (
-    <svg viewBox="0 0 160 130" className="w-[130px] max-w-full h-auto drop-shadow-md">
-      {arr.map((_, i) => {
-        const offset = i * 3;
-        const rot = (i % 2 === 0 ? -1 : 1) * (3 + i * 0.5);
-        const isTop = i === arr.length - 1;
-        return (
-          <g
-            key={i}
-            transform={`translate(${offset}, ${-offset}) rotate(${rot} 80 65)`}
-            className={isTop && pulse ? "office-paper-new" : undefined}
-            style={{ transformOrigin: "80px 65px" }}
-          >
-            <rect
-              x="22"
-              y="22"
-              width="110"
-              height="80"
-              rx="4"
-              fill={i === arr.length - 1 ? "white" : `oklch(${0.92 + i * 0.01} 0.02 80)`}
-              stroke="oklch(0.85 0.02 80)"
-              strokeWidth="0.5"
-            />
-            {isTop && (
-              <>
-                <rect x="32" y="32" width="60" height="5" rx="2" fill="oklch(0.5 0.03 270)" />
-                <rect x="32" y="44" width="86" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-                <rect x="32" y="52" width="72" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-                <rect x="32" y="60" width="80" height="3" rx="1" fill="oklch(0.78 0.02 270)" />
-                <rect x="32" y="76" width="40" height="16" rx="2" fill="var(--primary)" opacity="0.18" />
-                <rect x="78" y="76" width="40" height="16" rx="2" fill="var(--primary)" opacity="0.28" />
-              </>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function PhoneSVG({ ringing }: { ringing?: boolean }) {
-  return (
-    <svg viewBox="0 0 100 140" className="w-[70px] max-w-full h-auto drop-shadow-md">
-      <rect x="10" y="6" width="80" height="128" rx="14" fill="oklch(0.18 0.02 265)" />
-      <rect x="14" y="14" width="72" height="112" rx="8" fill="oklch(0.96 0.01 270)" />
-      <rect x="22" y="22" width="56" height="6" rx="2" fill="var(--primary)" opacity="0.7" />
-      <rect x="22" y="34" width="56" height="14" rx="3" fill={ringing ? "var(--primary)" : "oklch(0.93 0.02 270)"} opacity={ringing ? 0.45 : 1} />
-      <rect x="22" y="52" width="56" height="14" rx="3" fill="oklch(0.93 0.02 270)" />
-      <rect x="22" y="70" width="56" height="14" rx="3" fill="oklch(0.93 0.02 270)" />
-      <circle cx="50" cy="118" r="3" fill="oklch(0.6 0.02 270)" />
-    </svg>
   );
 }
 
@@ -638,8 +637,7 @@ function ComputerPanel({
 }) {
   const { t } = useI18n();
   return (
-    <div className="rounded-2xl border bg-card/95 backdrop-blur shadow-card overflow-hidden">
-      {/* macOS-style window chrome */}
+    <div className="bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 border-b bg-secondary/60">
         <span className="size-3 rounded-full bg-[oklch(0.7_0.18_25)]" />
         <span className="size-3 rounded-full bg-[oklch(0.8_0.16_85)]" />
@@ -648,17 +646,11 @@ function ComputerPanel({
           {t("office.decisionCenter")} — Step {step}/{totalSteps}
         </span>
       </div>
-
       <div className="p-5 md:p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold">{t("run.yourDecision")}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {t("run.yourDecisionSub")}
-            </p>
-          </div>
+        <div>
+          <h3 className="font-semibold">{t("run.yourDecision")}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("run.yourDecisionSub")}</p>
         </div>
-
         <div className="mt-4 flex flex-wrap gap-2">
           {suggested.map((a) => (
             <button
@@ -675,7 +667,6 @@ function ComputerPanel({
             </button>
           ))}
         </div>
-
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -703,7 +694,6 @@ function ComputerPanel({
             )}
           </Button>
         </form>
-
         {lastReaction && (
           <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4 animate-fade-in">
             <div className="flex items-center gap-2 text-xs font-medium text-primary uppercase tracking-wider">
@@ -712,7 +702,6 @@ function ComputerPanel({
             <p className="mt-1.5 text-sm">{lastReaction}</p>
           </div>
         )}
-
         {history.length > 0 && (
           <div className="mt-6">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -752,10 +741,9 @@ function DocsPanel({
   newCount: number;
 }) {
   const { t } = useI18n();
-  // Mark the last `newCount` items as newly added
   const newSet = new Set(resources.slice(resources.length - newCount));
   return (
-    <div className="rounded-2xl border bg-card/95 backdrop-blur p-5 md:p-6 shadow-card">
+    <div className="p-5 md:p-6">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-sm">{t("run.resources")}</h3>
         <span className="text-[11px] text-muted-foreground">
@@ -791,9 +779,7 @@ function DocsPanel({
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-primary">
             <ClipboardList className="size-3.5" /> {selected}
           </div>
-          <p className="mt-2 text-sm leading-relaxed">
-            {resourceDetail(selected, scenario, step)}
-          </p>
+          <p className="mt-2 text-sm leading-relaxed">{resourceDetail(selected, scenario, step)}</p>
         </div>
       )}
     </div>
@@ -840,14 +826,13 @@ function resourceDetail(resource: string, scenario: Scenario, step: number) {
   return `${resource}: рабочий артефакт для сценария «${scenario.scenario}». Используй его, чтобы уточнить гипотезу, риски и следующий шаг.`;
 }
 
-/* ---------------- Phone panel — realistic smartphone ---------------- */
+/* ---------------- Phone panel ---------------- */
 function PhonePanel({
   messages,
 }: {
   messages: { from: string; role: string; time: string; text: string }[];
 }) {
   const { t } = useI18n();
-  // Group consecutive messages by sender into threads
   const threads = useMemo(() => {
     const map = new Map<string, { from: string; role: string; messages: typeof messages }>();
     for (const m of messages) {
@@ -864,19 +849,17 @@ function PhonePanel({
   const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center p-4 bg-[oklch(0.15_0.02_265)]">
       <div
-        className="relative w-full max-w-[380px] rounded-[44px] p-3 shadow-office"
+        className="relative w-full max-w-[360px] rounded-[44px] p-3"
         style={{
           background: "linear-gradient(180deg, oklch(0.22 0.02 265), oklch(0.14 0.02 265))",
           border: "1px solid oklch(0.3 0.02 265)",
+          boxShadow: "0 30px 60px -10px rgba(0,0,0,0.6)",
         }}
       >
-        {/* Notch */}
         <div className="absolute left-1/2 -translate-x-1/2 top-4 h-6 w-32 rounded-full bg-black/80 z-10" />
-
-        <div className="rounded-[34px] overflow-hidden bg-background min-h-[560px] flex flex-col">
-          {/* Status bar */}
+        <div className="rounded-[34px] overflow-hidden bg-background min-h-[540px] flex flex-col">
           <div className="flex items-center justify-between px-6 pt-3 pb-2 text-[11px] font-semibold">
             <span>{timeStr}</span>
             <div className="flex items-center gap-1 text-foreground/70">
@@ -885,8 +868,6 @@ function PhonePanel({
               <Battery className="size-3.5" />
             </div>
           </div>
-
-          {/* Header */}
           <div className="px-4 pt-3 pb-2 border-b flex items-center justify-between">
             {active ? (
               <>
@@ -908,8 +889,6 @@ function PhonePanel({
               </>
             )}
           </div>
-
-          {/* Body */}
           <div className="flex-1 overflow-y-auto">
             {!active &&
               threads.map((th, i) => {
@@ -936,12 +915,9 @@ function PhonePanel({
                   </button>
                 );
               })}
-
             {active && (
               <div className="px-4 py-4 space-y-2">
-                <div className="text-center text-[11px] text-muted-foreground py-1">
-                  {active.role}
-                </div>
+                <div className="text-center text-[11px] text-muted-foreground py-1">{active.role}</div>
                 {active.messages.map((m, i) => (
                   <div key={i} className="flex flex-col items-start animate-fade-in">
                     <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-secondary px-3 py-2 text-sm">
@@ -952,15 +928,12 @@ function PhonePanel({
                 ))}
               </div>
             )}
-
             {messages.length === 0 && (
               <div className="p-8 text-center text-sm text-muted-foreground">
                 {t("office.noMessages") ?? "No messages yet."}
               </div>
             )}
           </div>
-
-          {/* Home indicator */}
           <div className="py-2 grid place-items-center">
             <div className="h-1 w-28 rounded-full bg-foreground/30" />
           </div>
@@ -985,8 +958,8 @@ function OfficeClock({ step, totalSteps }: { step: number; totalSteps: number })
   const week = Math.min(2, 1 + Math.floor(dayIndex / 5)) + (totalSteps > 8 ? 0 : 0);
   const fmt = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-md border bg-card/90 px-2.5 py-1 text-xs font-medium">
-      <Clock className="size-3.5 text-muted-foreground" />
+    <div className="inline-flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-medium text-white">
+      <Clock className="size-3.5 text-white/70" />
       {t(`office.day.${day}`)} · {fmt} · {t("office.week", { n: week })}
     </div>
   );
