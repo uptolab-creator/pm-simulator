@@ -144,3 +144,30 @@
 @utility shadow-elegant { box-shadow: var(--shadow-elegant); }
 @utility shadow-card { box-shadow: var(--shadow-card); }
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
+
+/* Office Mode tokens */
+:root {
+  --office-floor: oklch(0.95 0.012 80);
+  --office-wall: oklch(0.97 0.008 90);
+  --office-desk: oklch(0.78 0.045 60);
+  --office-desk-edge: oklch(0.62 0.05 55);
+  --office-glass: oklch(0.85 0.04 230 / 0.35);
+  --office-glass-frame: oklch(0.55 0.03 260);
+  --office-daylight: radial-gradient(ellipse at 18% -10%, oklch(0.99 0.03 80 / 0.85), transparent 55%);
+  --office-shadow: 0 18px 36px -18px oklch(0.25 0.05 260 / 0.35);
+}
+.dark {
+  --office-floor: oklch(0.22 0.02 265);
+  --office-wall: oklch(0.18 0.025 265);
+  --office-desk: oklch(0.35 0.04 60);
+  --office-desk-edge: oklch(0.26 0.04 55);
+  --office-glass: oklch(0.55 0.04 240 / 0.18);
+  --office-glass-frame: oklch(0.7 0.04 260);
+  --office-daylight: radial-gradient(ellipse at 18% -10%, oklch(0.7 0.08 250 / 0.18), transparent 55%);
+  --office-shadow: 0 18px 36px -18px oklch(0 0 0 / 0.6);
+}
+@utility bg-office-floor { background-color: var(--office-floor); }
+@utility bg-office-wall { background-color: var(--office-wall); }
+@utility bg-office-desk { background-color: var(--office-desk); }
+@utility bg-office-glass { background-color: var(--office-glass); }
+@utility shadow-office { box-shadow: var(--shadow-office, var(--office-shadow)); }
