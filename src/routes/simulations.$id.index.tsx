@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OfficeView } from "@/components/office/OfficeView";
+
 
 import { getScenario, type Scenario } from "@/lib/scenarios";
 import { reactToDecision, generateReport } from "@/lib/simulation.functions";
