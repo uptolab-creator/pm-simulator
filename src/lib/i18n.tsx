@@ -152,6 +152,11 @@ const EN: Dict = {
   "office.day.Thu": "Thu",
   "office.day.Fri": "Fri",
   "office.week": "Week {n}",
+  "office.decisionCenter": "Decision Center",
+  "office.inbox": "Inbox",
+  "office.msgs": "msgs",
+  "office.noMessages": "No messages yet.",
+  "run.history": "Action log",
 };
 
 const RU: Dict = {
