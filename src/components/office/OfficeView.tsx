@@ -28,6 +28,10 @@ import officeBg from "@/assets/office-bg.jpg";
 import laptopImg from "@/assets/office-laptop.png";
 import phoneImg from "@/assets/office-phone.png";
 import docsImg from "@/assets/office-docs.png";
+import mugImg from "@/assets/office-mug.png";
+import plantImg from "@/assets/office-plant.png";
+import stickyImg from "@/assets/office-stickynote.png";
+import notebookImg from "@/assets/office-notebook.png";
 
 type LiveMetric = { label: string; value: string; delta?: string; trend?: "up" | "down" | "flat" };
 type HistoryItem = { step: number; decision: string; reaction: string };
@@ -251,82 +255,93 @@ export function OfficeView(props: OfficeViewProps) {
         <div className="relative">
           {/* Stage frame */}
           <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ aspectRatio: "16 / 10", minHeight: 520 }}>
-            {/* Back wall */}
+            {/* Photoreal office background (back wall + desk) */}
+            <img
+              src={officeBg}
+              alt=""
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-cover select-none"
+            />
+            {/* Vignette for depth */}
             <div
-              className="absolute inset-0"
+              className="absolute inset-0 pointer-events-none"
               style={{
                 background:
-                  "linear-gradient(180deg, oklch(0.26 0.03 260) 0%, oklch(0.20 0.03 260) 56%, oklch(0.16 0.02 260) 56%, oklch(0.12 0.02 260) 100%)",
+                  "radial-gradient(ellipse at 50% 35%, transparent 40%, rgba(0,0,0,0.55) 100%)",
               }}
-            />
-            {/* Wall ambient light */}
-            <div
-              className="absolute inset-x-0 top-0 h-[56%] pointer-events-none"
-              style={{ background: "radial-gradient(ellipse at 50% 0%, oklch(0.85 0.08 80 / 0.18), transparent 60%)" }}
-            />
-            {/* Subtle wall grid */}
-            <div
-              className="absolute inset-x-0 top-0 h-[56%] opacity-[0.05] pointer-events-none"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0 1px, transparent 1px 80px)",
-              }}
+              aria-hidden
             />
 
-            {/* Desk surface (wooden) */}
-            <div className="absolute inset-x-0 bottom-0 h-[44%] pointer-events-none">
-              {/* edge line / horizon */}
-              <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-black/60 to-transparent" />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(180deg, oklch(0.38 0.05 55) 0%, oklch(0.30 0.05 50) 35%, oklch(0.22 0.04 45) 100%)",
-                }}
-              />
-              {/* wood grain */}
-              <div
-                className="absolute inset-0 opacity-30 mix-blend-overlay"
-                style={{
-                  backgroundImage:
-                    "repeating-linear-gradient(90deg, rgba(0,0,0,0.25) 0 2px, transparent 2px 7px), repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 24px)",
-                }}
-              />
-              {/* desk top highlight */}
-              <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white/15 to-transparent" />
-            </div>
-
-            {/* Whiteboard with metallic frame */}
+            {/* Whiteboard with metallic frame — mounted on the dark wall */}
             <button
               type="button"
               onClick={() => setOpen("whiteboard")}
               className="absolute group cursor-pointer text-left"
-              style={{ left: "18%", top: "5%", width: "64%", height: "46%" }}
+              style={{ left: "24%", top: "8%", width: "52%", height: "40%" }}
               aria-label={t("office.whiteboard")}
             >
               <div
-                className="relative w-full h-full rounded-md p-[10px] shadow-[0_25px_45px_-15px_rgba(0,0,0,0.7)]"
+                className="relative w-full h-full rounded-md p-[10px] shadow-[0_25px_45px_-15px_rgba(0,0,0,0.85)]"
                 style={{
                   background:
-                    "linear-gradient(145deg, oklch(0.72 0.02 80), oklch(0.45 0.03 70) 50%, oklch(0.6 0.03 75))",
+                    "linear-gradient(145deg, oklch(0.75 0.02 80), oklch(0.42 0.03 70) 50%, oklch(0.62 0.03 75))",
                 }}
               >
                 <div className="relative w-full h-full rounded-sm bg-[oklch(0.98_0.005_90)] overflow-hidden">
                   <WhiteboardWriting scenario={scenario} metrics={props.metrics} step={step} />
                   <span className="absolute inset-0 ring-0 group-hover:ring-2 ring-amber-300/60 transition rounded-sm" />
                 </div>
-                {/* board tray */}
+                {/* board tray with markers */}
                 <div
-                  className="absolute left-[6%] right-[6%] -bottom-1 h-1.5 rounded-b"
-                  style={{ background: "linear-gradient(180deg, oklch(0.45 0.03 70), oklch(0.25 0.02 65))" }}
+                  className="absolute left-[4%] right-[4%] -bottom-2 h-2 rounded-b shadow-md"
+                  style={{ background: "linear-gradient(180deg, oklch(0.45 0.03 70), oklch(0.22 0.02 65))" }}
                 />
+                <div className="absolute left-[10%] -bottom-1.5 flex gap-1.5">
+                  {["#1f2937", "#2563eb", "#dc2626", "#16a34a"].map((c) => (
+                    <span key={c} className="block w-5 h-1.5 rounded-sm shadow-sm" style={{ background: c }} />
+                  ))}
+                </div>
               </div>
             </button>
 
-            {/* Desk objects */}
+            {/* Static desk decor (non-interactive) */}
+            <img
+              src={mugImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="absolute pointer-events-none select-none drop-shadow-[0_18px_18px_rgba(0,0,0,0.65)]"
+              style={{ left: "2%", bottom: "5%", width: "9%" }}
+            />
+            <img
+              src={notebookImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="absolute pointer-events-none select-none drop-shadow-[0_18px_18px_rgba(0,0,0,0.6)]"
+              style={{ left: "13%", bottom: "2%", width: "12%", transform: "rotate(-6deg)" }}
+            />
+            <img
+              src={plantImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="absolute pointer-events-none select-none drop-shadow-[0_18px_18px_rgba(0,0,0,0.6)]"
+              style={{ right: "1%", bottom: "4%", width: "10%" }}
+            />
+            <img
+              src={stickyImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="absolute pointer-events-none select-none drop-shadow-[0_10px_12px_rgba(0,0,0,0.5)]"
+              style={{ right: "20%", bottom: "2%", width: "11%", transform: "rotate(4deg)" }}
+            />
+
+            {/* Desk objects (interactive) */}
             <div className="absolute inset-x-0 bottom-0 h-[44%] pointer-events-none">
               <DeskPhotoObject
-                style={{ left: "6%", bottom: "8%", width: "17%" }}
+                style={{ left: "8%", bottom: "14%", width: "15%" }}
                 src={docsImg}
                 label={t("office.docs")}
                 ariaLabel={t("office.openDocs")}
@@ -337,7 +352,7 @@ export function OfficeView(props: OfficeViewProps) {
                 count={visibleResourceCount}
               />
               <DeskPhotoObject
-                style={{ left: "32%", bottom: "2%", width: "36%" }}
+                style={{ left: "28%", bottom: "0%", width: "42%" }}
                 src={laptopImg}
                 label={t("office.computer")}
                 ariaLabel={t("office.openComputer")}
@@ -346,7 +361,7 @@ export function OfficeView(props: OfficeViewProps) {
                 glow
               />
               <DeskPhotoObject
-                style={{ right: "8%", bottom: "8%", width: "11%" }}
+                style={{ right: "11%", bottom: "10%", width: "9%" }}
                 src={phoneImg}
                 label={t("office.phone")}
                 ariaLabel={t("office.openPhone")}
@@ -358,6 +373,7 @@ export function OfficeView(props: OfficeViewProps) {
               />
             </div>
           </div>
+
 
           {/* Timeline strip */}
           <div className="mt-3 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white px-4 py-2.5 shadow-xl">
