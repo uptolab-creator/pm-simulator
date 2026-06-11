@@ -53,6 +53,10 @@ export interface OfficeViewProps {
   setSelectedResource: (r: string) => void;
   submit: (text: string) => void;
   viewToggle: ReactNode;
+  isExam?: boolean;
+  examExternalLink?: string;
+  setExamExternalLink?: (v: string) => void;
+  timerChip?: ReactNode;
 }
 
 type ModalId = null | "computer" | "phone" | "docs" | "whiteboard";
