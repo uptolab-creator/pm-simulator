@@ -103,6 +103,12 @@ export interface Scenario {
   messages: ScenarioMessage[];
   resources: string[];
   suggestedActions: string[];
+  /** Final exam (60min, time-bound, free-form only). */
+  isExam?: boolean;
+  /** Exam duration in minutes (default 60). */
+  examDurationMin?: number;
+  /** Industry theme key for visual theming. */
+  industry?: IndustryType;
 }
 
 export const SCENARIOS: Scenario[] = [
