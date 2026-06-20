@@ -146,16 +146,18 @@ export const getAdminAnalytics = createServerFn({ method: "GET" })
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: attemptsRaw }, { data: progressRaw }] = await Promise.all([
+    const [{ data: attemptsRaw }, { data: progressRaw }, { data: appealsAgg }] = await Promise.all([
       supabaseAdmin
         .from("task_attempts")
         .select("user_id, lesson_id, task_type, attempt_no, status, score, created_at, override_status"),
       supabaseAdmin
         .from("lesson_progress")
         .select("user_id, lesson_id, status, started_at, completed_at, updated_at"),
+      supabaseAdmin.from("appeals").select("status"),
     ]);
     const attempts = (attemptsRaw ?? []) as AttemptRow[];
     const progress = (progressRaw ?? []) as ProgressRow[];
+    const appeals = (appealsAgg ?? []) as { status: string }[];
 
     const now = Date.now();
     const activeIn = (ms: number) => {
