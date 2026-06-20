@@ -59,11 +59,6 @@ function CoursePage() {
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <Link to="/simulations">
-              <Button size="sm" variant="ghost">
-                <Monitor className="size-4" /> Офис-симулятор
-              </Button>
-            </Link>
             {authed === false ? (
               <Button size="sm" onClick={() => navigate({ to: "/auth" })}>Войти</Button>
             ) : authed ? (
