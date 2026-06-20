@@ -10,15 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as CourseRouteImport } from './routes/course'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SimulationsIndexRouteImport } from './routes/simulations.index'
 import { Route as SimulationsIdRouteImport } from './routes/simulations.$id'
+import { Route as ApiTtsRouteImport } from './routes/api/tts'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as SimulationsIdIndexRouteImport } from './routes/simulations.$id.index'
 import { Route as SimulationsIdResultsRouteImport } from './routes/simulations.$id.results'
+import { Route as AuthenticatedLessonIdRouteImport } from './routes/_authenticated/lesson.$id'
 
 const ProgressRoute = ProgressRouteImport.update({
   id: '/progress',
   path: '/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CourseRoute = CourseRouteImport.update({
+  id: '/course',
+  path: '/course',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -36,6 +56,16 @@ const SimulationsIdRoute = SimulationsIdRouteImport.update({
   path: '/simulations/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTtsRoute = ApiTtsRouteImport.update({
+  id: '/api/tts',
+  path: '/api/tts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
+  id: '/api/transcribe',
+  path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SimulationsIdIndexRoute = SimulationsIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -46,28 +76,49 @@ const SimulationsIdResultsRoute = SimulationsIdResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => SimulationsIdRoute,
 } as any)
+const AuthenticatedLessonIdRoute = AuthenticatedLessonIdRouteImport.update({
+  id: '/lesson/$id',
+  path: '/lesson/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/course': typeof CourseRoute
   '/progress': typeof ProgressRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/tts': typeof ApiTtsRoute
   '/simulations/$id': typeof SimulationsIdRouteWithChildren
   '/simulations/': typeof SimulationsIndexRoute
+  '/lesson/$id': typeof AuthenticatedLessonIdRoute
   '/simulations/$id/results': typeof SimulationsIdResultsRoute
   '/simulations/$id/': typeof SimulationsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/course': typeof CourseRoute
   '/progress': typeof ProgressRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/tts': typeof ApiTtsRoute
   '/simulations': typeof SimulationsIndexRoute
+  '/lesson/$id': typeof AuthenticatedLessonIdRoute
   '/simulations/$id/results': typeof SimulationsIdResultsRoute
   '/simulations/$id': typeof SimulationsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/course': typeof CourseRoute
   '/progress': typeof ProgressRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/tts': typeof ApiTtsRoute
   '/simulations/$id': typeof SimulationsIdRouteWithChildren
   '/simulations/': typeof SimulationsIndexRoute
+  '/_authenticated/lesson/$id': typeof AuthenticatedLessonIdRoute
   '/simulations/$id/results': typeof SimulationsIdResultsRoute
   '/simulations/$id/': typeof SimulationsIdIndexRoute
 }
@@ -75,31 +126,52 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
+    | '/course'
     | '/progress'
+    | '/api/transcribe'
+    | '/api/tts'
     | '/simulations/$id'
     | '/simulations/'
+    | '/lesson/$id'
     | '/simulations/$id/results'
     | '/simulations/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
+    | '/course'
     | '/progress'
+    | '/api/transcribe'
+    | '/api/tts'
     | '/simulations'
+    | '/lesson/$id'
     | '/simulations/$id/results'
     | '/simulations/$id'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/course'
     | '/progress'
+    | '/api/transcribe'
+    | '/api/tts'
     | '/simulations/$id'
     | '/simulations/'
+    | '/_authenticated/lesson/$id'
     | '/simulations/$id/results'
     | '/simulations/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  CourseRoute: typeof CourseRoute
   ProgressRoute: typeof ProgressRoute
+  ApiTranscribeRoute: typeof ApiTranscribeRoute
+  ApiTtsRoute: typeof ApiTtsRoute
   SimulationsIdRoute: typeof SimulationsIdRouteWithChildren
   SimulationsIndexRoute: typeof SimulationsIndexRoute
 }
@@ -111,6 +183,27 @@ declare module '@tanstack/react-router' {
       path: '/progress'
       fullPath: '/progress'
       preLoaderRoute: typeof ProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/course': {
+      id: '/course'
+      path: '/course'
+      fullPath: '/course'
+      preLoaderRoute: typeof CourseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -134,6 +227,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SimulationsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/tts': {
+      id: '/api/tts'
+      path: '/api/tts'
+      fullPath: '/api/tts'
+      preLoaderRoute: typeof ApiTtsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/transcribe': {
+      id: '/api/transcribe'
+      path: '/api/transcribe'
+      fullPath: '/api/transcribe'
+      preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/simulations/$id/': {
       id: '/simulations/$id/'
       path: '/'
@@ -148,8 +255,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SimulationsIdResultsRouteImport
       parentRoute: typeof SimulationsIdRoute
     }
+    '/_authenticated/lesson/$id': {
+      id: '/_authenticated/lesson/$id'
+      path: '/lesson/$id'
+      fullPath: '/lesson/$id'
+      preLoaderRoute: typeof AuthenticatedLessonIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedLessonIdRoute: typeof AuthenticatedLessonIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedLessonIdRoute: AuthenticatedLessonIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface SimulationsIdRouteChildren {
   SimulationsIdResultsRoute: typeof SimulationsIdResultsRoute
@@ -167,20 +292,15 @@ const SimulationsIdRouteWithChildren = SimulationsIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  CourseRoute: CourseRoute,
   ProgressRoute: ProgressRoute,
+  ApiTranscribeRoute: ApiTranscribeRoute,
+  ApiTtsRoute: ApiTtsRoute,
   SimulationsIdRoute: SimulationsIdRouteWithChildren,
   SimulationsIndexRoute: SimulationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
