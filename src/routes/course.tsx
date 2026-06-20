@@ -96,14 +96,13 @@ function CoursePage() {
             const p = progressMap.get(lesson.id);
             const done = p?.status === "completed";
             const started = !!p && !done;
-            const prev = idx === 0 ? null : progressMap.get(LESSONS[idx - 1].id);
-            const locked = authed === true && idx > 0 && prev?.status !== "completed" && !p;
+            const locked = false;
             const totalSteps = lessonStepCount(lesson);
 
             const practice = practiceAfterLesson(lesson.number);
             const practiceProgress = practice ? progressMap.get(practice.id) : undefined;
             const practiceDone = practiceProgress?.status === "completed";
-            const practiceLocked = authed === true && !done && !practiceProgress;
+            const practiceLocked = false;
 
             return (
               <div key={lesson.id} className="contents">
