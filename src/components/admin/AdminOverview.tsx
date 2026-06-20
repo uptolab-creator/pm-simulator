@@ -5,13 +5,28 @@ import { Card } from "@/components/ui/card";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Users, Activity, Target, Timer, Lightbulb } from "lucide-react";
+import { STEP_LABELS_RU, type TaskType } from "@/lib/course";
+import {
+  Users,
+  Activity,
+  Target,
+  Timer,
+  Lightbulb,
+  Flag,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 
 function Kpi({
   icon: Icon,
@@ -60,16 +75,25 @@ export function AdminOverview() {
   const o = data.overview;
   const worst = [...data.funnel].filter((f) => f.started > 0).sort((a, b) => b.dropPct - a.dropPct)[0];
 
+
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={Activity} label="DAU / MAU" value={`${o.dau} / ${o.mau}`} sub={`WAU: ${o.wau}`} />
+        <Kpi icon={Users} label="Студентов" value={`${o.totalUsers}`} sub={`Начали: ${o.startedUsers}`} />
+        <Kpi icon={Activity} label="DAU / WAU / MAU" value={`${o.dau} / ${o.wau} / ${o.mau}`} sub="активные за 1 / 7 / 30 дней" />
         <Kpi
           icon={Target}
           label="Конверсия курса"
           value={`${o.retention}%`}
           sub={`${o.completedUsers} из ${o.startedUsers} дошли до урока 26`}
           tone={o.retention >= 40 ? "good" : o.retention >= 15 ? "warn" : "bad"}
+        />
+        <Kpi
+          icon={CheckCircle2}
+          label="Ср. прогресс"
+          value={`${o.avgCompletionPct}%`}
+          sub="курса завершено в среднем"
         />
         <Kpi icon={Timer} label="Ср. время урока" value={`${o.avgLessonMinutes} мин`} />
         <Kpi
@@ -79,7 +103,66 @@ export function AdminOverview() {
           sub={`Провалено: ${o.failedPct}%`}
           tone={o.solvedSelfPct >= o.solvedWithHelpPct ? "good" : "warn"}
         />
+        <Kpi
+          icon={Layers}
+          label="Попыток всего"
+          value={`${o.totalAttempts}`}
+          sub={`${o.avgAttemptsPerUser} на студента`}
+        />
+        <Kpi
+          icon={Flag}
+          label="Жалобы"
+          value={`${o.openAppeals} / ${o.totalAppeals}`}
+          sub="открытых / всего"
+          tone={o.openAppeals > 0 ? "warn" : "good"}
+        />
       </div>
+
+      {o.lessonsInTrouble > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm">
+          <AlertTriangle className="size-4 text-destructive shrink-0" />
+          <span>
+            <span className="font-semibold text-destructive">{o.lessonsInTrouble}</span> урок(ов) в красной зоне —
+            теория или подсказки не справляются. Смотрите вкладку «Аналитика по урокам».
+          </span>
+        </div>
+      )}
+
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-sm">Эффективность по типам заданий</h3>
+          <span className="text-xs text-muted-foreground">сам · с подсказкой · провал (по всем урокам)</span>
+        </div>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart
+            data={data.taskTypeBreakdown.map((t) => ({
+              name: STEP_LABELS_RU[t.type as TaskType] ?? t.type,
+              Сам: t.solvedSelf,
+              "С подсказкой": t.solvedWithHelp,
+              Провал: t.failed,
+            }))}
+            margin={{ left: -20, right: 8 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="Сам" stackId="a" fill="#10b981" />
+            <Bar dataKey="С подсказкой" stackId="a" fill="#f59e0b" />
+            <Bar dataKey="Провал" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
 
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">

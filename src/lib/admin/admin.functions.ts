@@ -16,6 +16,12 @@ export interface KpiOverview {
   solvedSelfPct: number;
   solvedWithHelpPct: number;
   failedPct: number;
+  totalAttempts: number;
+  avgAttemptsPerUser: number;
+  totalAppeals: number;
+  openAppeals: number;
+  lessonsInTrouble: number; // red lessons
+  avgCompletionPct: number; // avg per-user share of 26 lessons completed
 }
 
 export interface ActivityPoint {
@@ -61,6 +67,23 @@ export interface AdminAnalytics {
   activity: ActivityPoint[];
   funnel: FunnelStep[];
   lessons: LessonStat[];
+  taskTypeBreakdown: TaskTypeStat[];
+}
+
+export interface StudentStat {
+  userId: string;
+  name: string;
+  lessonsStarted: number;
+  lessonsCompleted: number;
+  completionPct: number;
+  attempts: number;
+  avgAttempts: number;
+  solvedSelf: number;
+  solvedWithHelp: number;
+  failed: number;
+  appeals: number;
+  lastActive: string | null;
+  status: "active" | "stuck" | "idle" | "done";
 }
 
 type AttemptRow = {
@@ -139,16 +162,18 @@ export const getAdminAnalytics = createServerFn({ method: "GET" })
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: attemptsRaw }, { data: progressRaw }] = await Promise.all([
+    const [{ data: attemptsRaw }, { data: progressRaw }, { data: appealsAgg }] = await Promise.all([
       supabaseAdmin
         .from("task_attempts")
         .select("user_id, lesson_id, task_type, attempt_no, status, score, created_at, override_status"),
       supabaseAdmin
         .from("lesson_progress")
         .select("user_id, lesson_id, status, started_at, completed_at, updated_at"),
+      supabaseAdmin.from("appeals").select("status"),
     ]);
     const attempts = (attemptsRaw ?? []) as AttemptRow[];
     const progress = (progressRaw ?? []) as ProgressRow[];
+    const appeals = (appealsAgg ?? []) as { status: string }[];
 
     const now = Date.now();
     const activeIn = (ms: number) => {
@@ -196,6 +221,27 @@ export const getAdminAnalytics = createServerFn({ method: "GET" })
     );
     const retention = startedSet.size ? Math.round((completedLastSet.size / startedSet.size) * 100) : 0;
 
+    const totalAttempts = attempts.length;
+    const attemptUsers = new Set(attempts.map((a) => a.user_id));
+    const avgAttemptsPerUser = attemptUsers.size
+      ? Math.round((totalAttempts / attemptUsers.size) * 10) / 10
+      : 0;
+    const openAppeals = appeals.filter((a) => a.status === "pending").length;
+
+    // avg per-user completion share of all lessons
+    const completedByUser = new Map<string, number>();
+    for (const p of progress) {
+      if (p.status === "completed") {
+        completedByUser.set(p.user_id, (completedByUser.get(p.user_id) ?? 0) + 1);
+      }
+    }
+    const compShares = [...allUsers].map(
+      (u) => (completedByUser.get(u) ?? 0) / (LESSONS.length || 1),
+    );
+    const avgCompletionPct = compShares.length
+      ? Math.round((compShares.reduce((a, b) => a + b, 0) / compShares.length) * 100)
+      : 0;
+
     const overview: KpiOverview = {
       totalUsers: allUsers.size,
       dau: activeIn(DAY),
@@ -208,6 +254,12 @@ export const getAdminAnalytics = createServerFn({ method: "GET" })
       solvedSelfPct: Math.round((self / graded) * 100),
       solvedWithHelpPct: Math.round((help / graded) * 100),
       failedPct: Math.round((failed / graded) * 100),
+      totalAttempts,
+      avgAttemptsPerUser,
+      totalAppeals: appeals.length,
+      openAppeals,
+      lessonsInTrouble: 0, // filled after lessons computed
+      avgCompletionPct,
     };
 
     // activity last 30 days
@@ -266,7 +318,15 @@ export const getAdminAnalytics = createServerFn({ method: "GET" })
       };
     });
 
-    return { overview, activity, funnel: buildFunnel(progress), lessons };
+    overview.lessonsInTrouble = lessons.filter((l) => l.difficulty === "red").length;
+
+    // aggregate task-type breakdown across all lessons
+    const TYPES = ["quiz", "calculation", "case_choice", "written", "call"];
+    const taskTypeBreakdown: TaskTypeStat[] = TYPES.map((t) =>
+      statForTaskType(attempts.filter((a) => a.task_type === t), t),
+    ).filter((s) => s.attempts > 0);
+
+    return { overview, activity, funnel: buildFunnel(progress), lessons, taskTypeBreakdown };
   });
 
 function statForTaskType(rows: AttemptRow[], type: string): TaskTypeStat {
@@ -506,4 +566,96 @@ export const getAppeals = createServerFn({ method: "GET" })
       lessonTitle: LESSONS.find((l) => l.id === a.lesson_id)?.title ?? a.lesson_id,
     }));
     return withTitle;
+  });
+
+// ---------- per-student analytics ----------
+export const getStudents = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<StudentStat[]> => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const [{ data: profilesRaw }, { data: attemptsRaw }, { data: progressRaw }, { data: appealsRaw }] =
+      await Promise.all([
+        supabaseAdmin.from("profiles").select("id, display_name"),
+        supabaseAdmin
+          .from("task_attempts")
+          .select("user_id, status, attempt_no, override_status, created_at"),
+        supabaseAdmin
+          .from("lesson_progress")
+          .select("user_id, status, updated_at"),
+        supabaseAdmin.from("appeals").select("user_id"),
+      ]);
+
+    const profiles = (profilesRaw ?? []) as { id: string; display_name: string | null }[];
+    const attempts = (attemptsRaw ?? []) as {
+      user_id: string;
+      status: string;
+      attempt_no: number;
+      override_status: string | null;
+      created_at: string;
+    }[];
+    const progress = (progressRaw ?? []) as {
+      user_id: string;
+      status: string;
+      updated_at: string;
+    }[];
+    const appeals = (appealsRaw ?? []) as { user_id: string }[];
+
+    const ids = new Set<string>();
+    profiles.forEach((p) => ids.add(p.id));
+    attempts.forEach((a) => ids.add(a.user_id));
+    progress.forEach((p) => ids.add(p.user_id));
+
+    const nameOf = (id: string) =>
+      profiles.find((p) => p.id === id)?.display_name || `${id.slice(0, 8)}…`;
+    const now = Date.now();
+    const DAYMS = 24 * 60 * 60 * 1000;
+
+    const out: StudentStat[] = [...ids].map((id) => {
+      const uAtt = attempts.filter((a) => a.user_id === id);
+      const uProg = progress.filter((p) => p.user_id === id);
+      const eff = (a: (typeof attempts)[number]) => a.override_status ?? a.status;
+      let self = 0,
+        help = 0,
+        failed = 0;
+      uAtt.forEach((a) => {
+        const s = eff(a);
+        if (s === "solved_self") self++;
+        else if (s === "solved_with_help") help++;
+        else if (s === "failed") failed++;
+      });
+      const lessonsStarted = uProg.length;
+      const lessonsCompleted = uProg.filter((p) => p.status === "completed").length;
+      const completionPct = Math.round((lessonsCompleted / (LESSONS.length || 1)) * 100);
+      const lastActiveMs = Math.max(
+        0,
+        ...uAtt.map((a) => new Date(a.created_at).getTime()),
+        ...uProg.map((p) => new Date(p.updated_at).getTime()),
+      );
+      const lastActive = lastActiveMs ? new Date(lastActiveMs).toISOString() : null;
+      const stuck = uAtt.some((a) => a.attempt_no >= 3 && eff(a) !== "solved_self");
+      let status: StudentStat["status"] = "idle";
+      if (lessonsCompleted >= LESSONS.length) status = "done";
+      else if (lastActiveMs && now - lastActiveMs <= 7 * DAYMS) status = stuck ? "stuck" : "active";
+
+      return {
+        userId: id,
+        name: nameOf(id),
+        lessonsStarted,
+        lessonsCompleted,
+        completionPct,
+        attempts: uAtt.length,
+        avgAttempts: lessonsStarted ? Math.round((uAtt.length / lessonsStarted) * 10) / 10 : 0,
+        solvedSelf: self,
+        solvedWithHelp: help,
+        failed,
+        appeals: appeals.filter((a) => a.user_id === id).length,
+        lastActive,
+        status,
+      };
+    });
+
+    out.sort((a, b) => +new Date(b.lastActive ?? 0) - +new Date(a.lastActive ?? 0));
+    return out;
   });
