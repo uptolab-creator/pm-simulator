@@ -287,6 +287,17 @@ function QuizStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
           Правильный ответ выделен зелёным. Запомни и двигайся дальше.
         </div>
       )}
+      {attempts >= 1 && (
+        <AppealButton
+          context={{
+            lessonId,
+            taskType: "quiz",
+            attemptNumber: attempts,
+            studentInput: selected !== null ? `Вопрос: ${q.question} · Выбран вариант ${selected !== null ? String.fromCharCode(65 + selected) : "-"}: ${selected !== null ? q.options[selected] : ""}` : "",
+            systemFeedback: reveal ? task.hint2 : task.hint1,
+          }}
+        />
+      )}
 
       <div className="mt-5">
         {reveal ? (
