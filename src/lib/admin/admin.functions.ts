@@ -67,6 +67,7 @@ export interface AdminAnalytics {
   activity: ActivityPoint[];
   funnel: FunnelStep[];
   lessons: LessonStat[];
+  taskTypeBreakdown: TaskTypeStat[];
 }
 
 type AttemptRow = {
