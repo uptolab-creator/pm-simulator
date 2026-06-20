@@ -70,52 +70,6 @@ function fallbackGrade(data: z.infer<typeof GradeInput>): GradeResult {
       ? "Ответ закрывает все критерии чек-листа."
       : `Не закрыты критерии: ${unmet.join("; ")}.`,
   };
-
-function fallbackCallReply(data: z.infer<typeof CallInput>): CallReply {
-  const text = data.userMessage.toLowerCase();
-  const revealWords = [...`${data.revealCondition} ${data.hiddenInfo}`.toLowerCase().matchAll(/[a-zа-яё]{4,}/gi)]
-    .map((m) => m[0])
-    .filter((w) => !["если", "только", "вопрос", "спросить", "раскрывает", "выяснится", "котор", "про"].includes(w));
-  const intentWords = [
-    "статус",
-    "готов",
-    "компонент",
-    "api",
-    "срок",
-    "время",
-    "сколько",
-    "занят",
-    "загрузка",
-    "почему",
-    "риск",
-    "оценк",
-    "входит",
-    "блокер",
-    "мешает",
-  ];
-  const shouldReveal = [...revealWords, ...intentWords].some((word) => text.includes(word));
-
-  if (shouldReveal) {
-    return {
-      reply: `Да, важная деталь: ${data.hiddenInfo}. Я бы отталкивался именно от этого, прежде чем обещать срок или решение.`,
-      revealed: true,
-    };
-  }
-
-  const role = data.personaRole.toLowerCase();
-  const nudge = role.includes("разработ")
-    ? "Могу объяснить техническую часть, но лучше задай вопрос точнее: про сроки, блокеры или что входит в работу."
-    : role.includes("дизайн")
-      ? "Я могу рассказать про макеты и загрузку, если спросишь конкретнее."
-      : role.includes("ceo") || role.includes("спонсор")
-        ? "Мне важно понять, что именно мешает релизу и какой у тебя план как PM."
-        : "Давай разберём ситуацию предметно: спроси про риск, срок, объём или зависимость.";
-
-  return {
-    reply: `${data.personaName}: ${nudge}`,
-    revealed: false,
-  };
-}
 }
 
 export const gradeWritten = createServerFn({ method: "POST" })
