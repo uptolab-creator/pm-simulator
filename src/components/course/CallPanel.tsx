@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { callReply, gradeCallAnswer, type GradeResult } from "@/lib/course/grading.functions";
 import type { CallTask } from "@/lib/course";
+import { AppealButton } from "@/components/course/AppealButton";
 import {
   Camera,
   CameraOff,
