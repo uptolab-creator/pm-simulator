@@ -393,7 +393,7 @@ function CalcStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
 }
 
 /* ---------------- Case (categorization) ---------------- */
-function CaseStep({ task, onComplete }: { task: Extract<Task, { type: "case_choice" }>; onComplete: (s: AttemptStatus) => void }) {
+function CaseStep({ lessonId, task, onComplete }: { lessonId: string; task: Extract<Task, { type: "case_choice" }>; onComplete: (s: AttemptStatus) => void }) {
   const [assign, setAssign] = useState<Record<number, string>>({});
   const [attempts, setAttempts] = useState(0);
   const [reveal, setReveal] = useState(false);
