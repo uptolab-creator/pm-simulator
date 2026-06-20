@@ -5,13 +5,28 @@ import { Card } from "@/components/ui/card";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Users, Activity, Target, Timer, Lightbulb } from "lucide-react";
+import { STEP_LABELS_RU, type TaskType } from "@/lib/course";
+import {
+  Users,
+  Activity,
+  Target,
+  Timer,
+  Lightbulb,
+  Flag,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 
 function Kpi({
   icon: Icon,
