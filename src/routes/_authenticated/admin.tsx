@@ -98,6 +98,9 @@ function AdminPage() {
             <TabsTrigger value="lessons">
               <BookOpen className="size-4" /> Аналитика по урокам
             </TabsTrigger>
+            <TabsTrigger value="students">
+              <Users className="size-4" /> Студенты
+            </TabsTrigger>
             <TabsTrigger value="calls">
               <PhoneCall className="size-4" /> AI-проверки и звонки
             </TabsTrigger>
@@ -108,9 +111,13 @@ function AdminPage() {
           <TabsContent value="lessons">
             <AdminLessons />
           </TabsContent>
+          <TabsContent value="students">
+            <AdminStudents />
+          </TabsContent>
           <TabsContent value="calls">
             <AdminCallLogs />
           </TabsContent>
+
         </Tabs>
       </main>
     </div>
