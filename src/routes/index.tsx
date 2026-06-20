@@ -6,15 +6,17 @@ import { GraduationCap, ArrowRight, BookOpen, Phone, Brain } from "lucide-react"
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "PM Симулятор — практика проектного менеджмента в IT" },
+      { title: "Симулятор проектного менеджера в IT — Практический курс" },
       {
         name: "description",
         content:
-          "Курс-симулятор: теория, квизы, расчёты, кейсы, письменные задания и голосовые звонки с AI-персонажами. Учись управлять IT-проектами на практике.",
+          "Практический симулятор проектного менеджера в IT: теория, квизы, расчёты, кейсы, письменные задания и голосовые звонки с AI-персонажами. Учись управлять IT-проектами на практике.",
       },
-      { property: "og:title", content: "PM Симулятор" },
-      { property: "og:description", content: "Курс-симулятор практики проектного менеджмента в IT с AI-проверкой." },
+      { property: "og:title", content: "Симулятор проектного менеджера в IT — Практический курс" },
+      { property: "og:description", content: "Практический курс-симулятор проектного менеджмента в IT с AI-проверкой заданий." },
+      { property: "og:url", content: "/" },
     ],
+    links: [{ rel: "canonical", href: "/" }],
   }),
   component: Landing,
 });

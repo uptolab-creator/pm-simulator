@@ -23,6 +23,25 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lesson/$id")({
+  head: ({ params }) => {
+    const lesson = getLesson(params.id);
+    const title = lesson
+      ? `${lesson.title} — Симулятор проектного менеджера в IT`
+      : "Урок — Симулятор проектного менеджера в IT";
+    const description = lesson
+      ? `${lesson.theory.replace(/\s+/g, " ").trim().slice(0, 150)}…`
+      : "Практический урок симулятора проектного менеджмента в IT: теория и задания с AI-проверкой.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: `/lesson/${params.id}` },
+      ],
+      links: [{ rel: "canonical", href: `/lesson/${params.id}` }],
+    };
+  },
   component: LessonRunner,
 });
 
