@@ -83,13 +83,21 @@ type ProgressRow = {
 };
 
 // ---------- admin guard ----------
-async function assertAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase.rpc("has_role", {
-    _user_id: userId,
-    _role: "admin",
-  });
+async function isAdminUser(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+
   if (error) throw new Error("Не удалось проверить права администратора");
-  if (!data) throw new Error("Forbidden: требуются права администратора");
+  return !!data;
+}
+
+async function assertAdmin(userId: string) {
+  if (!(await isAdminUser(userId))) throw new Error("Forbidden: требуются права администратора");
 }
 
 // ---------- status / bootstrap ----------
@@ -101,11 +109,8 @@ export const getAdminStatus = createServerFn({ method: "GET" })
       .from("user_roles")
       .select("id", { count: "exact", head: true })
       .eq("role", "admin");
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    return { isAdmin: !!isAdmin, adminCount: count ?? 0 };
+    const isAdmin = await isAdminUser(context.userId);
+    return { isAdmin, adminCount: count ?? 0 };
   });
 
 /** Bootstrap: первый пользователь может стать админом, пока админов нет. */
@@ -131,7 +136,7 @@ const DAY = 24 * 60 * 60 * 1000;
 export const getAdminAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AdminAnalytics> => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: attemptsRaw }, { data: progressRaw }] = await Promise.all([
@@ -340,7 +345,7 @@ export const getCallLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => CallFilter.parse(d))
   .handler(async ({ data, context }): Promise<CallLog[]> => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const lessonMeta = (id: string) => LESSONS.find((l) => l.id === id);
@@ -443,7 +448,7 @@ export const overruleAttempt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => OverruleInput.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("task_attempts")
@@ -469,7 +474,7 @@ export const resolveAppeal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ResolveInput.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("appeals")
@@ -488,7 +493,7 @@ export const resolveAppeal = createServerFn({ method: "POST" })
 export const getAppeals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("appeals")
