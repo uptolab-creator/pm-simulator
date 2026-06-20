@@ -1,68 +1,53 @@
-# ProductPush Simulator V2 — Architecture Rollout Plan
+# ProductPush → PM Course Simulator
 
-This is a large, multi-phase rebuild. I'll ship it in 4 incremental PRs so each phase is reviewable and the app keeps working between steps. Lovable Cloud needs to be enabled (for DB + AI generator persistence) — I'll do that in Phase 2.
+Replace the scenario engine with a structured **course** built from the ТЗ: 21 lessons, each = теория + 5 заданий (квиз, расчёт, кейс, письменное, звонок) + сводный экран. AI grades open answers, a 3-tier hint system руководит попытками, progress lives in Lovable Cloud. The office laptop becomes a macOS-style desktop with a Calls app that rings when a lesson reaches the звонок step. The post-simulation analytics screen stays (reused for the lesson summary / course progress).
 
-## Phase A — Simulation Core + Theme Engine (no UI redesign)
+## Phase 0 — Backend foundation (Lovable Cloud)
+- Enable Cloud. Auth: email/password + Google sign-in.
+- Tables (all with GRANTs + RLS scoped to `auth.uid()`):
+  - `profiles` (display name) + trigger on signup.
+  - `lesson_progress` — user_id, lesson_id, current_step, status, started/completed_at.
+  - `task_attempts` — user_id, lesson_id, task_type, attempt_no, status (`solved_self` / `solved_with_help` / `failed`), user_answer, ai_feedback, score.
+  - `user_roles` + `app_role` enum + `has_role()` security-definer (admin gating reused later).
+- Course content (21 lessons) ships as a typed data module in code (`src/lib/course/lessons/*`), not a table — fast to author and version. Progress/attempts are the only DB writes.
 
-**New module: `src/lib/simulation/`**
-- `types.ts` — canonical typed blocks:
-  - `Industry` (id, name, terminologyMap, defaultKpis[], stakeholderArchetypes[], resourceArchetypes[], themeId)
-  - `Company` (id, industryId, name, employees, products[], businessModel, description)
-  - `Scenario` (id, companyId, title, objective, difficulty, successCriteria[], failureCriteria[], evaluatedSkills[])
-  - `SimulationEvent` (id, trigger: 'auto'|'decision'|'progress', condition, payload: ScenarioMessage|MetricDelta|Update)
-  - `Resource` (id, kind, title, payload)
-  - `EvaluationRubric` (skill → weight, rules)
-  - `SimulationDefinition` — the assembled object `{industry, company, scenario, events[], resources[], messages[], evaluation}`
-- `registry.ts` — in-memory registry of industries/companies/scenarios; seeded with current 11 scenarios mapped into the new shape.
-- `assembler.ts` — `assembleSimulation(scenarioId): SimulationDefinition` that hydrates a scenario with its company + industry defaults.
-- `adapter.ts` — converts a `SimulationDefinition` back into the legacy `Scenario` shape consumed by `simulations.$id.index.tsx` and `OfficeView`, so nothing breaks during the transition.
+## Phase 1 — Course data model & content
+- New types in `src/lib/course/types.ts`: `Lesson`, `Theory`, and 5 task shapes (`QuizTask`, `CalcTask`, `CaseTask`, `WrittenTask`, `CallTask`) carrying the exact fields the ТЗ lists (question/options/correctIndex, hint L1/L2, explanation; formula + answer + tolerance; criteria checklist; character system prompt + hidden info + reveal condition + open question, etc.).
+- Author all 21 lessons from the uploaded ТЗ into `src/lib/course/lessons/`.
+- Remove the old `SCENARIOS` engine surface: `simulations.index`, `simulations.$id.*` routes and `scenarios.ts` are replaced by course routes. Keep `OfficeView` + analytics components, adapt them.
 
-**Theme Engine: `src/lib/theme-engine/`**
-- `themes.ts` — `IndustryTheme` definitions (telecom, banking, construction, manufacturing, retail, logistics, it_startup, healthcare, education, government, custom) with: colorTokens, officeBgKey, deskPropsKeys[], terminology, resourceIcons.
-- `ThemeProvider.tsx` — React context that exposes the active theme; injects CSS vars (`--theme-primary`, `--theme-accent`, etc.) on a wrapper div so every component (Office, Classic, Sidebar accents) reads the same tokens.
-- `OfficeView` and `simulations.$id.index.tsx` consume theme via `useIndustryTheme()` — no per-industry forks.
+## Phase 2 — Lesson runner UI
+- Routes: `/course` (lesson list + progress), `/_authenticated/lesson/$id` (runner).
+- 5-step progress indicator within a lesson (not a global bar).
+- Step screens:
+  1. **Теория** — text + key terms.
+  2. **Квиз** — single-choice; wrong → L1 hint, retry; 2nd wrong → L2 hint; 3rd → reveal answer + explanation, status `solved_with_help`.
+  3. **Расчёт** — numeric/text input with tolerance; same hint ladder.
+  4. **Кейс** — multi-select / categorization; same ladder.
+  5. **Письменное** — TextArea, AI-graded against criteria checklist; AI returns guiding question per unmet criterion, up to 3 revisions, then reference answer.
+  6. **Звонок** — see Phase 4.
+  7. **Сводный экран** — what passed/failed + link to re-read теория; reuse existing analytics styling.
 
-**Existing `src/lib/scenarios.ts`** is kept as a thin re-export that calls the adapter, so all existing routes keep compiling.
+## Phase 3 — AI grading (server functions, Lovable AI Gateway)
+- `gradeWritten` and `gradeCallAnswer` server fns: input answer + criteria → structured `{ metCriteria[], unmetCriteria[], guidingQuestion, passed }` via `Output.object` (reuse `ai-gateway.server.ts`).
+- Quiz/calc/case grade locally (deterministic) — no AI needed.
+- Hint progression and attempt status recorded to `task_attempts`.
 
-## Phase B — Lovable Cloud + Persistence
+## Phase 4 — Voice call (звонок)
+- Real voice loop via Lovable AI Gateway: mic record (webm/mp4) → `/api/transcribe` (STT `gpt-4o-mini-transcribe`) → character reply server fn (Gemini, fed the lesson's system prompt + hidden-info reveal rule) → TTS playback. Character only reveals hidden info when the reveal condition is met.
+- Ends with the open question → graded by `gradeCallAnswer` (max 2 hints, then разбор).
+- Call UI lives inside the laptop Calls app (Phase 5).
 
-- Enable Lovable Cloud.
-- Migration creates tables: `industries`, `companies`, `scenarios`, `scenario_events`, `scenario_resources`, `scenario_messages`, `simulation_runs`, `user_roles` (+ `app_role` enum + `has_role` SECURITY DEFINER).
-- Standard GRANTs + RLS (public read for published scenarios; admin write via `has_role(auth.uid(),'admin')`).
-- Seed migration inserts the 11 existing scenarios via the new schema.
-- Server functions in `src/lib/simulation.functions.ts`: `listScenarios`, `getScenario`, `createScenario`, `updateScenario`, `publishScenario`.
-
-## Phase C — AI Scenario + Company Generators
-
-- `src/lib/ai/generate-scenario.functions.ts` — `createServerFn` (admin-gated) that takes `{title, industryId, difficulty, description}` and uses Lovable AI Gateway (`google/gemini-3-flash-preview`) with `Output.object` schema matching `SimulationDefinition` to produce: scenario body, stakeholders, messages, events timeline, resources, evaluation rubric, 3 solution paths.
-- `src/lib/ai/generate-company.functions.ts` — same pattern, prompt → `Company` object.
-- Both return drafts (`status: 'draft'`) so admin can edit before publishing.
-- Uses existing `src/lib/ai-gateway.server.ts` helper.
-
-## Phase D — Admin Panel
-
-- Route layout `src/routes/admin/` gated by `_authenticated` + `has_role('admin')`.
-- Pages: Dashboard, Industries, Themes, Companies, Scenarios (list + editor), Events, Resources, Users, Reports, AI Generator.
-- AI Generator page: form → calls generator server fn → renders editable preview of the generated `SimulationDefinition` → Save Draft / Publish buttons.
-- Scenario editor: block-based form mirroring the type shape (objectives, events timeline, resources, messages, rubric weights).
-
-## Phase E (deferred per request) — Office Mode visual polish
-
-Skipped intentionally until A–D land.
-
----
+## Phase 5 — macOS-style laptop desktop + call notifications
+- Clicking the laptop opens a full macOS-like desktop inside the modal: top menu bar (clock, wifi/battery), a dock, and app icons — **Calls**, **Mail/Messages** (stakeholder messages), **Docs/Finder** (resources), **Notes** (whiteboard), **Tasks** (current step actions).
+- Each app opens a window pane within the desktop.
+- **Calls app**: shows the lesson's AI character; when a lesson reaches the звонок step, a macOS-style incoming-call notification appears (banner + ring), badge on the laptop and dock Calls icon; clicking connects the voice call.
+- Keep current desk/phone/whiteboard hotspots; route their content through the new desktop apps where it makes sense.
 
 ## Technical notes
+- Voice defaults to Lovable AI (STT + Gemini + TTS); no extra connector needed. ElevenLabs is an option later if you want a true real-time agent.
+- All `process.env` reads inside server fn handlers; protected fns under `_authenticated` only.
+- Course content is large — Phase 1 authoring of all 21 lessons is the biggest single chunk.
 
-- The adapter pattern in Phase A is the key to not breaking the current UI: existing components keep importing `getScenario(id)` and receive the same shape.
-- All AI calls go through the Lovable AI Gateway server-side; `LOVABLE_API_KEY` never touches the client.
-- Schema for `Output.object` will be kept flat (no deep enums) to stay within Gemini's constrained-decoding limit; long lists (industries) are passed in the prompt, validated in code.
-- Role storage uses the mandated `user_roles` table + `has_role` SECURITY DEFINER pattern — never on profiles.
-
----
-
-## What I need from you before I start coding
-
-1. **Scope confirmation** — should I ship all of Phase A in this turn (no Cloud, no AI yet, just the typed core + theme engine + adapter so nothing breaks), and then Phase B–D in follow-up turns? Or do you want a different slice first?
-2. **Auth** — Phase B onward needs login (so admins can be gated). OK to add email/password auth when we turn on Lovable Cloud?
-3. **Industries list** — the 11 above is my default. Want me to drop/add any before I seed?
+## Suggested build order
+0 → 1 → 2 → 3 → 4 → 5. Phases 2–3 make one fully playable lesson; Phase 1 then fills all 21; Phases 4–5 layer voice + the macOS desktop.
