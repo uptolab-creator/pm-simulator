@@ -75,7 +75,7 @@ export function AdminOverview() {
   const o = data.overview;
   const worst = [...data.funnel].filter((f) => f.started > 0).sort((a, b) => b.dropPct - a.dropPct)[0];
 
-  const STATUS_COLORS = ["hsl(var(--primary))", "#10b981", "#f59e0b", "#ef4444", "#6366f1"];
+
 
   return (
     <div className="space-y-6">
