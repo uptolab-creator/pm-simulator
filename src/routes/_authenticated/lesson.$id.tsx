@@ -5,6 +5,7 @@ import { getLesson, STEP_LABELS_RU, type Task } from "@/lib/course";
 import { gradeWritten, type GradeResult } from "@/lib/course/grading.functions";
 import { upsertProgress, recordAttempt } from "@/lib/course/progress.functions";
 import { CallPanel } from "@/components/course/CallPanel";
+import { LessonRadar, type LessonSkillKey } from "@/components/course/LessonRadar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
