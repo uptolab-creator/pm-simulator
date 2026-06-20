@@ -71,7 +71,7 @@ function CoursePage() {
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold">Введение в проектный менеджмент в IT</h1>
           <p className="text-muted-foreground mt-1">
-            {LESSONS.length} уроков. Каждый: теория → квиз → расчёт → кейс → письменное → звонок с AI.
+            {LESSONS.length} уроков. База: теория → практика → письменный вывод; звонки с AI — только в темах, где нужна коммуникация.
           </p>
           {authed && (
             <div className="mt-4 flex items-center gap-3">

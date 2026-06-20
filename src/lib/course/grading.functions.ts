@@ -19,6 +19,11 @@ const GradeInput = z.object({
   answer: z.string().min(1).max(8000),
 });
 
+const CallGradeInput = GradeInput.extend({
+  hiddenInfo: z.string().optional().default(""),
+  transcript: z.array(z.object({ role: z.enum(["user", "persona"]), text: z.string() })).optional().default([]),
+});
+
 const GradeSchema = z.object({
   passed: z.boolean().describe("true only if ALL criteria are met"),
   metCriteria: z.array(z.string()).describe("criteria texts that are satisfied"),
@@ -72,6 +77,54 @@ function fallbackGrade(data: z.infer<typeof GradeInput>): GradeResult {
   };
 }
 
+function meaningfulWords(value: string) {
+  const stopWords = new Set([
+    "ответ",
+    "называет",
+    "учитывает",
+    "упомянута",
+    "упомянуты",
+    "упомянут",
+    "критерий",
+    "конкретный",
+    "через",
+    "роль",
+    "если",
+    "что",
+    "как",
+    "для",
+    "или",
+    "это",
+    "the",
+    "and",
+  ]);
+  return (value.toLowerCase().match(/[a-zа-яё]{4,}/gi) ?? []).filter((w) => !stopWords.has(w));
+}
+
+function fallbackCallAnswerGrade(data: z.infer<typeof CallGradeInput>): GradeResult {
+  const answer = data.answer.toLowerCase();
+  const transcript = data.transcript.map((t) => t.text).join(" ").toLowerCase();
+  const important = meaningfulWords(`${data.prompt} ${data.criteria.join(" ")} ${data.hiddenInfo}`).slice(0, 30);
+  const hits = important.filter((w) => answer.includes(w)).length;
+  const hiddenWasDiscussed = meaningfulWords(data.hiddenInfo).some((w) => transcript.includes(w) || answer.includes(w));
+  const pmSignals = /(риск|срок|блокер|зависим|приоритет|план|следующ|уточн|готов|оценк|бюджет|объ[её]м|scope|api|макет|метрик|ценност)/i.test(
+    data.answer,
+  );
+  const passed = data.answer.trim().length >= 35 && (hiddenWasDiscussed || pmSignals || hits >= 2);
+
+  return {
+    passed,
+    metCriteria: passed ? data.criteria : data.criteria.filter((c) => meaningfulWords(c).some((w) => answer.includes(w))),
+    unmetCriteria: passed ? [] : data.criteria,
+    guidingQuestion: passed
+      ? ""
+      : "Сформулируй не дословную фразу, а управленческий вывод: что ты выяснил на звонке и какое действие PM из этого следует?",
+    feedback: passed
+      ? "Ответ засчитан по смыслу: ты связал вывод со звонком и следующим PM-действием."
+      : "Пока не видно управленческого вывода из звонка: нужен риск/ограничение/следующий шаг, а не точная угадываемая формулировка.",
+  };
+}
+
 export const gradeWritten = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => GradeInput.parse(d))
   .handler(async ({ data }) => {
@@ -98,6 +151,40 @@ ${data.criteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}
     }
   });
 
+export const gradeCallAnswer = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => CallGradeInput.parse(d))
+  .handler(async ({ data }) => {
+    try {
+      const { output } = await generateText({
+        model: getModel(),
+        output: Output.object({ schema: GradeSchema }),
+        prompt: `Ты оцениваешь итоговый ответ студента после учебного Zoom-созвона по проектному менеджменту.
+
+ВАЖНО: это НЕ игра в угадывание одной фразы. Засчитывай синонимы, неполные, но управленчески верные формулировки и ответы, где студент понял смысл разговора. Не требуй дословного совпадения со скрытой информацией.
+
+ОТКРЫТЫЙ ВОПРОС: ${data.prompt}
+
+ЧЕК-ЛИСТ:
+${data.criteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+
+КОНТЕКСТ, который мог быть выяснен в разговоре:
+${data.hiddenInfo || "нет отдельной скрытой детали"}
+
+СТЕНОГРАММА ЗВОНКА:
+${data.transcript.map((t) => `${t.role === "user" ? "PM" : "Собеседник"}: ${t.text}`).join("\n") || "(стенограммы нет)"}
+
+ОТВЕТ СТУДЕНТА:
+"""${data.answer}"""
+
+passed=true, если ответ по смыслу закрывает управленческий вывод: что выяснили, почему это важно и какой следующий шаг PM. Если не хватает детали — задай ОДИН наводящий вопрос. Весь текст — на русском.`,
+      });
+      return output;
+    } catch (error) {
+      console.error("gradeCallAnswer fallback", error);
+      return fallbackCallAnswerGrade(data);
+    }
+  });
+
 /* ---------------- AI call character reply ---------------- */
 
 const CallInput = z.object({
@@ -109,6 +196,7 @@ const CallInput = z.object({
   brief: z.string(),
   history: z.array(z.object({ role: z.enum(["user", "persona"]), text: z.string() })).max(40),
   userMessage: z.string().min(1).max(4000),
+  revealedAlready: z.boolean().optional().default(false),
 });
 
 const ReplySchema = z.object({
@@ -120,10 +208,8 @@ export type CallReply = z.infer<typeof ReplySchema>;
 
 function fallbackCallReply(data: z.infer<typeof CallInput>): CallReply {
   const text = data.userMessage.toLowerCase();
-  const ignored = new Set(["если", "только", "вопрос", "спросить", "раскрывает", "выяснится", "котор", "про"]);
-  const revealWords = [...`${data.revealCondition} ${data.hiddenInfo}`.toLowerCase().matchAll(/[a-zа-яё]{4,}/gi)]
-    .map((m) => m[0])
-    .filter((w) => !ignored.has(w));
+  const previousPersona = data.history.filter((h) => h.role === "persona").map((h) => h.text.toLowerCase()).join(" ");
+  const revealWords = meaningfulWords(`${data.revealCondition} ${data.hiddenInfo}`);
   const intentWords = [
     "статус",
     "готов",
@@ -140,25 +226,48 @@ function fallbackCallReply(data: z.infer<typeof CallInput>): CallReply {
     "входит",
     "блокер",
     "мешает",
+    "зависим",
+    "приоритет",
+    "метрик",
+    "ценност",
+    "пользовател",
+    "отч",
+    "успех",
   ];
-  const shouldReveal = [...revealWords, ...intentWords].some((word) => text.includes(word));
+  const asksOpenQuestion = /\?|расска|объясн|почему|какие|какой|что|когда|сколько|насколько|помоги|давай|можем|можешь/i.test(text);
+  const alreadyRevealed = data.revealedAlready || meaningfulWords(data.hiddenInfo).some((w) => previousPersona.includes(w));
+  const shouldReveal = !alreadyRevealed && [...revealWords, ...intentWords].some((word) => text.includes(word));
 
   if (shouldReveal) {
     const detail = data.hiddenInfo.replace(/[.!?…]+$/u, "");
     return {
-      reply: `Да, важная деталь: ${detail}. Я бы отталкивался именно от этого, прежде чем обещать срок или решение.`,
+      reply: `Да, вот важный нюанс: ${detail}. Поэтому я бы не фиксировал решение вслепую — сначала надо связать это с планом, риском и следующим шагом.`,
       revealed: true,
+    };
+  }
+
+  if (alreadyRevealed) {
+    return {
+      reply: `Если коротко, ключевая вводная уже на столе: ${data.hiddenInfo.replace(/[.!?…]+$/u, "")}. Дальше я жду от тебя как PM понятный следующий шаг: что фиксируем, кого подключаем и какой риск снимаем.`,
+      revealed: false,
+    };
+  }
+
+  if (asksOpenQuestion) {
+    return {
+      reply: `Я понял вопрос. По текущей ситуации могу сказать так: ${data.brief} Сам я пока не уверен, что мы видим весь контекст — уточни у меня сроки, ограничения, зависимости или критерий успеха, и я смогу дать более полезную вводную.`,
+      revealed: false,
     };
   }
 
   const role = data.personaRole.toLowerCase();
   const nudge = role.includes("разработ")
-    ? "Могу объяснить техническую часть, но лучше задай вопрос точнее: про сроки, блокеры или что входит в работу."
+    ? "Технически ситуация не чёрно-белая. Если тебе нужен управленческий вывод, уточни срок, блокер, зависимость или что входит в работу."
     : role.includes("дизайн")
-      ? "Я могу рассказать про макеты и загрузку, если спросишь конкретнее."
+      ? "С макетами есть нюансы по приоритетам и загрузке. Спроси, что именно мешает или от чего зависит готовность."
       : role.includes("ceo") || role.includes("спонсор")
-        ? "Мне важно понять, что именно мешает релизу и какой у тебя план как PM."
-        : "Давай разберём ситуацию предметно: спроси про риск, срок, объём или зависимость.";
+        ? "Мне важно услышать управляемый план, а не общие обещания. Уточни, что мешает релизу, какие есть риски и что ты предлагаешь как PM."
+        : "Давай предметно: уточни риск, срок, объём, зависимость или критерий успеха — тогда я дам содержательную вводную.";
 
   return {
     reply: `${data.personaName}: ${nudge}`,
@@ -183,8 +292,15 @@ export const callReply = createServerFn({ method: "POST" })
 КОНТЕКСТ ЗВОНКА: ${data.brief}
 СКРЫТАЯ ИНФОРМАЦИЯ (НЕ раскрывай по умолчанию): ${data.hiddenInfo}
 УСЛОВИЕ РАСКРЫТИЯ: ${data.revealCondition}
+СКРЫТАЯ ИНФОРМАЦИЯ УЖЕ РАСКРЫВАЛАСЬ: ${data.revealedAlready ? "да" : "нет"}
 
-ВАЖНО: раскрывай скрытую информацию ТОЛЬКО если PM явно задал вопрос, подпадающий под условие раскрытия. Иначе отвечай в характере, не выдавая её. Никогда не отвечай «плохо слышно», если сообщение пользователя текстовое и понятно.
+ВАЖНО:
+- Не веди себя как бот с одним правильным паролем. Подстраивайся под смысл реплики PM, задавай встречные уточнения, спорь или соглашайся по роли.
+- Если PM спрашивает близко к условию раскрытия, раскрывай деталь по смыслу, даже если слова не совпали дословно.
+- Если PM говорит неидеально, всё равно отвечай содержательно и помогай разговору двигаться дальше.
+- Если скрытая информация уже раскрыта, не повторяй её механически; помоги PM сделать вывод и следующий шаг.
+- Никогда не отвечай «плохо слышно» или «переформулируй», если сообщение пользователя текстовое и понятно.
+- Не начинай каждую реплику одинаково. 1–3 живых предложения, без лекции.
 
 ИСТОРИЯ ЗВОНКА:
 ${convo || "(звонок только начался)"}
