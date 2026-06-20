@@ -104,6 +104,16 @@ export function CallPanel({
   const [result, setResult] = useState<GradeResult | null>(null);
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState("");
+  const [observerSpeech, setObserverSpeech] = useState<Record<string, string>>({});
+
+  const observers = useMemo(() => participants.filter((p) => p.kind === "observer"), [participants]);
+
+  const nudgeObservers = useCallback(() => {
+    if (observers.length === 0) return;
+    const target = observers[Math.floor(Math.random() * observers.length)];
+    const line = observerLine(target.role);
+    setObserverSpeech((prev) => ({ ...prev, [target.name]: line }));
+  }, [observers]);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
