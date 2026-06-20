@@ -369,6 +369,17 @@ function CalcStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
           <p className="mt-1">{task.explanation}</p>
         </div>
       )}
+      {attempts >= 1 && (
+        <AppealButton
+          context={{
+            lessonId,
+            taskType: "calculation",
+            attemptNumber: attempts,
+            studentInput: value,
+            systemFeedback: reveal ? `Решение: ${task.explanation}` : task.hint1,
+          }}
+        />
+      )}
 
       <div className="mt-5">
         {reveal ? (
