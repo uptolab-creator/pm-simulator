@@ -4,9 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { LESSONS, lessonStepCount } from "@/lib/course";
+import { practiceAfterLesson } from "@/lib/course/practice";
 import { getMyProgress } from "@/lib/course/progress.functions";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, CheckCircle2, Lock, PlayCircle, LogOut, Monitor } from "lucide-react";
+import { GraduationCap, CheckCircle2, Lock, PlayCircle, LogOut, Monitor, Building2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/course")({
