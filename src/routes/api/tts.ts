@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/tts")({
 
         const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
           method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          headers: { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "direct-fetch", "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "openai/gpt-4o-mini-tts",
             input: text.slice(0, 2000),
