@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { LESSONS, lessonStepCount, lessonSlug } from "@/lib/course";
-import { practiceAfterLesson } from "@/lib/course/practice";
+import { missionAfterLesson } from "@/lib/missions";
 import { getMyProgress } from "@/lib/course/progress.functions";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, CheckCircle2, PlayCircle, LogOut, Building2, ArrowRight, ShieldCheck } from "lucide-react";
@@ -106,7 +106,7 @@ function CoursePage() {
             const locked = false;
             const totalSteps = lessonStepCount(lesson);
 
-            const practice = practiceAfterLesson(lesson.number);
+            const practice = missionAfterLesson(lesson.number);
             const practiceProgress = practice ? progressMap.get(practice.id) : undefined;
             const practiceDone = practiceProgress?.status === "completed";
             const practiceLocked = false;
@@ -170,7 +170,7 @@ function CoursePage() {
                     <div className="font-semibold text-sm leading-snug">{practice.title}</div>
                     <div className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{practice.subtitle}</div>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="text-[11px] text-muted-foreground">{practice.tasks.length} рабочих задач</span>
+                      <span className="text-[11px] text-muted-foreground">{practice.steps.length} шагов · симулятор</span>
                       <Link
                         to="/practice/$id"
                         params={{ id: practice.id }}
