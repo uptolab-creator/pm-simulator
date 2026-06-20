@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       appeals: {
         Row: {
+          admin_resolution: string | null
           attempt_number: number
           call_transcript: Json | null
           complaint_category: string
@@ -23,6 +24,8 @@ export type Database = {
           created_at: string
           id: string
           lesson_id: string
+          resolved_at: string | null
+          resolved_by: string | null
           status: string
           student_input: string | null
           system_feedback: string | null
@@ -30,6 +33,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          admin_resolution?: string | null
           attempt_number?: number
           call_transcript?: Json | null
           complaint_category: string
@@ -37,6 +41,8 @@ export type Database = {
           created_at?: string
           id?: string
           lesson_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           student_input?: string | null
           system_feedback?: string | null
@@ -44,6 +50,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          admin_resolution?: string | null
           attempt_number?: number
           call_transcript?: Json | null
           complaint_category?: string
@@ -51,6 +58,8 @@ export type Database = {
           created_at?: string
           id?: string
           lesson_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           student_input?: string | null
           system_feedback?: string | null
@@ -120,6 +129,11 @@ export type Database = {
           created_at: string
           id: string
           lesson_id: string
+          overridden_at: string | null
+          overridden_by: string | null
+          override_note: string | null
+          override_score: number | null
+          override_status: string | null
           score: number | null
           status: string
           task_type: string
@@ -132,6 +146,11 @@ export type Database = {
           created_at?: string
           id?: string
           lesson_id: string
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_note?: string | null
+          override_score?: number | null
+          override_status?: string | null
           score?: number | null
           status: string
           task_type: string
@@ -144,6 +163,11 @@ export type Database = {
           created_at?: string
           id?: string
           lesson_id?: string
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_note?: string | null
+          override_score?: number | null
+          override_status?: string | null
           score?: number | null
           status?: string
           task_type?: string
