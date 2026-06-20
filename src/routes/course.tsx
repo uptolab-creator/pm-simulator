@@ -128,20 +128,14 @@ function CoursePage() {
                     <span className="text-[11px] text-muted-foreground">
                       {started ? `Шаг ${(p?.current_step ?? 0) + 1}/${totalSteps}` : `${totalSteps} шагов`}
                     </span>
-                    {locked ? (
-                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                        <Lock className="size-3.5" /> Закрыт
-                      </span>
-                    ) : (
-                      <Link
-                        to="/lesson/$id"
-                        params={{ id: lesson.id }}
-                        className="text-xs font-medium text-primary inline-flex items-center gap-1 hover:underline"
-                      >
-                        <PlayCircle className="size-4" />
-                        {done ? "Повторить" : started ? "Продолжить" : "Начать"}
-                      </Link>
-                    )}
+                    <Link
+                      to="/lesson/$id"
+                      params={{ id: lesson.id }}
+                      className="text-xs font-medium text-primary inline-flex items-center gap-1 hover:underline"
+                    >
+                      <PlayCircle className="size-4" />
+                      {done ? "Повторить" : started ? "Продолжить" : "Начать"}
+                    </Link>
                   </div>
                 </div>
               </div>
