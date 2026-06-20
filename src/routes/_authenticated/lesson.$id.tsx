@@ -28,8 +28,8 @@ export const Route = createFileRoute("/_authenticated/lesson/$id")({
     const title = lesson
       ? `${lesson.title} — Симулятор проектного менеджера в IT`
       : "Урок — Симулятор проектного менеджера в IT";
-    const description = lesson?.summary
-      ? lesson.summary
+    const description = lesson
+      ? `${lesson.theory.replace(/\s+/g, " ").trim().slice(0, 150)}…`
       : "Практический урок симулятора проектного менеджмента в IT: теория и задания с AI-проверкой.";
     return {
       meta: [
