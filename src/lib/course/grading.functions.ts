@@ -208,10 +208,8 @@ export type CallReply = z.infer<typeof ReplySchema>;
 
 function fallbackCallReply(data: z.infer<typeof CallInput>): CallReply {
   const text = data.userMessage.toLowerCase();
-  const ignored = new Set(["если", "только", "вопрос", "спросить", "раскрывает", "выяснится", "котор", "про"]);
-  const revealWords = [...`${data.revealCondition} ${data.hiddenInfo}`.toLowerCase().matchAll(/[a-zа-яё]{4,}/gi)]
-    .map((m) => m[0])
-    .filter((w) => !ignored.has(w));
+  const previousPersona = data.history.filter((h) => h.role === "persona").map((h) => h.text.toLowerCase()).join(" ");
+  const revealWords = meaningfulWords(`${data.revealCondition} ${data.hiddenInfo}`);
   const intentWords = [
     "статус",
     "готов",
@@ -228,25 +226,48 @@ function fallbackCallReply(data: z.infer<typeof CallInput>): CallReply {
     "входит",
     "блокер",
     "мешает",
+    "зависим",
+    "приоритет",
+    "метрик",
+    "ценност",
+    "пользовател",
+    "отч[её]т",
+    "успех",
   ];
-  const shouldReveal = [...revealWords, ...intentWords].some((word) => text.includes(word));
+  const asksOpenQuestion = /\?|расска|объясн|почему|какие|какой|что|когда|сколько|насколько|помоги|давай|можем|можешь/i.test(text);
+  const alreadyRevealed = data.revealedAlready || meaningfulWords(data.hiddenInfo).some((w) => previousPersona.includes(w));
+  const shouldReveal = !alreadyRevealed && [...revealWords, ...intentWords].some((word) => text.includes(word));
 
   if (shouldReveal) {
     const detail = data.hiddenInfo.replace(/[.!?…]+$/u, "");
     return {
-      reply: `Да, важная деталь: ${detail}. Я бы отталкивался именно от этого, прежде чем обещать срок или решение.`,
+      reply: `Да, вот важный нюанс: ${detail}. Поэтому я бы не фиксировал решение вслепую — сначала надо связать это с планом, риском и следующим шагом.`,
       revealed: true,
+    };
+  }
+
+  if (alreadyRevealed) {
+    return {
+      reply: `Если коротко, ключевая вводная уже на столе: ${data.hiddenInfo.replace(/[.!?…]+$/u, "")}. Дальше я жду от тебя как PM понятный следующий шаг: что фиксируем, кого подключаем и какой риск снимаем.`,
+      revealed: false,
+    };
+  }
+
+  if (asksOpenQuestion) {
+    return {
+      reply: `Я понял вопрос. По текущей ситуации могу сказать так: ${data.brief} Сам я пока не уверен, что мы видим весь контекст — уточни у меня сроки, ограничения, зависимости или критерий успеха, и я смогу дать более полезную вводную.`,
+      revealed: false,
     };
   }
 
   const role = data.personaRole.toLowerCase();
   const nudge = role.includes("разработ")
-    ? "Могу объяснить техническую часть, но лучше задай вопрос точнее: про сроки, блокеры или что входит в работу."
+    ? "Технически ситуация не чёрно-белая. Если тебе нужен управленческий вывод, уточни срок, блокер, зависимость или что входит в работу."
     : role.includes("дизайн")
-      ? "Я могу рассказать про макеты и загрузку, если спросишь конкретнее."
+      ? "С макетами есть нюансы по приоритетам и загрузке. Спроси, что именно мешает или от чего зависит готовность."
       : role.includes("ceo") || role.includes("спонсор")
-        ? "Мне важно понять, что именно мешает релизу и какой у тебя план как PM."
-        : "Давай разберём ситуацию предметно: спроси про риск, срок, объём или зависимость.";
+        ? "Мне важно услышать управляемый план, а не общие обещания. Уточни, что мешает релизу, какие есть риски и что ты предлагаешь как PM."
+        : "Давай предметно: уточни риск, срок, объём, зависимость или критерий успеха — тогда я дам содержательную вводную.";
 
   return {
     reply: `${data.personaName}: ${nudge}`,
