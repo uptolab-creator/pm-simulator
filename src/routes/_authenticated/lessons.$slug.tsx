@@ -24,7 +24,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/lessons/$slug")({
   head: ({ params }) => {
-    const lesson = getLesson(params.id);
+    const lesson = getLesson(params.slug);
     const title = lesson
       ? `${lesson.title} — Симулятор проектного менеджера в IT`
       : "Урок — Симулятор проектного менеджера в IT";
@@ -37,9 +37,9 @@ export const Route = createFileRoute("/_authenticated/lessons/$slug")({
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
-        { property: "og:url", content: `/lesson/${params.id}` },
+        { property: "og:url", content: `/lessons/${params.slug}` },
       ],
-      links: [{ rel: "canonical", href: `/lesson/${params.id}` }],
+      links: [{ rel: "canonical", href: `/lessons/${params.slug}` }],
     };
   },
   component: LessonRunner,
@@ -48,9 +48,9 @@ export const Route = createFileRoute("/_authenticated/lessons/$slug")({
 type AttemptStatus = "solved_self" | "solved_with_help" | "failed";
 
 function LessonRunner() {
-  const { id } = Route.useParams();
+  const { slug } = Route.useParams();
   const navigate = useNavigate();
-  const lesson = getLesson(id);
+  const lesson = getLesson(slug);
   const saveProgress = useServerFn(upsertProgress);
   const logAttempt = useServerFn(recordAttempt);
 
@@ -174,7 +174,7 @@ function TheoryStep({ lesson, onNext }: { lesson: ReturnType<typeof getLesson> &
         <BookOpen className="size-5" />
         <span className="text-xs font-semibold uppercase tracking-wider">Теория</span>
       </div>
-      <h2 className="mt-3 text-xl font-bold">{lesson.title}</h2>
+      <h1 className="mt-3 text-xl font-bold">{lesson.title}</h1>
       <p className="mt-3 leading-relaxed text-[15px]">{lesson.theory}</p>
       {lesson.keyTerms.length > 0 && (
         <div className="mt-4">
