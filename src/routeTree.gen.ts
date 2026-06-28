@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as CourseRouteImport } from './routes/course'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -34,11 +33,6 @@ const ProgressRoute = ProgressRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CourseRoute = CourseRouteImport.update({
-  id: '/course',
-  path: '/course',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -110,7 +104,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
-  '/course': typeof CourseRoute
   '/login': typeof LoginRoute
   '/progress': typeof ProgressRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -127,7 +120,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
-  '/course': typeof CourseRoute
   '/login': typeof LoginRoute
   '/progress': typeof ProgressRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -145,7 +137,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
-  '/course': typeof CourseRoute
   '/login': typeof LoginRoute
   '/progress': typeof ProgressRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -164,7 +155,6 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
-    | '/course'
     | '/login'
     | '/progress'
     | '/admin'
@@ -181,7 +171,6 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
-    | '/course'
     | '/login'
     | '/progress'
     | '/admin'
@@ -198,7 +187,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/app'
     | '/auth'
-    | '/course'
     | '/login'
     | '/progress'
     | '/_authenticated/admin'
@@ -217,7 +205,6 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppRoute: typeof AppRoute
   AuthRoute: typeof AuthRoute
-  CourseRoute: typeof CourseRoute
   LoginRoute: typeof LoginRoute
   ProgressRoute: typeof ProgressRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -242,13 +229,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/course': {
-      id: '/course'
-      path: '/course'
-      fullPath: '/course'
-      preLoaderRoute: typeof CourseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -375,7 +355,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppRoute: AppRoute,
   AuthRoute: AuthRoute,
-  CourseRoute: CourseRoute,
   LoginRoute: LoginRoute,
   ProgressRoute: ProgressRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
