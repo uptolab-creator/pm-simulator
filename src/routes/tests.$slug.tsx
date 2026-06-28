@@ -134,7 +134,7 @@ function LessonRunner() {
     <div className="min-h-screen bg-gradient-subtle">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link to="/course" className="text-muted-foreground hover:text-foreground">
+          <Link to="/app" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-5" />
           </Link>
           <div className="min-w-0 flex-1">
@@ -778,7 +778,7 @@ function SummaryStep({
       </div>
 
       <div className="mt-6 grid sm:grid-cols-2 gap-2">
-        <Button onClick={onFinish}>К списку уроков</Button>
+        <Button onClick={onFinish}>К списку тестов</Button>
         <Button variant="outline" onClick={onBackToTheory}>
           <BookOpen className="size-4" /> Повторить теорию
         </Button>
