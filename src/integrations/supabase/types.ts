@@ -403,17 +403,29 @@ export type Database = {
           updated_at: string
         }[]
       }
-      student_save_progress: {
-        Args: {
-          p_item_id: string
-          p_kind: string
-          p_score: number
-          p_status: string
-          p_step: number
-          p_student_id: string
-        }
-        Returns: undefined
-      }
+      student_save_progress:
+        | {
+            Args: {
+              p_item_id: string
+              p_kind: string
+              p_score: number
+              p_status: string
+              p_step: number
+              p_student_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_item_id: string
+              p_kind: string
+              p_score: number
+              p_status: string
+              p_step: number
+              p_student_id: string
+            }
+            Returns: undefined
+          }
     }
     Enums: {
       app_role: "admin" | "user"
