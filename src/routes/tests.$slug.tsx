@@ -234,9 +234,22 @@ function LessonRunner() {
           />
         )}
         {isSummary && (
-          <SummaryStep lesson={lesson} outcomes={outcomes} scores={scores} onBackToTheory={() => goTo(0)} onFinish={() => navigate({ to: "/course" })} />
+          <SummaryStep lesson={lesson} outcomes={outcomes} scores={scores} onBackToTheory={() => goTo(0)} onFinish={() => navigate({ to: "/app" })} />
         )}
       </main>
+
+      <Dialog open={celebrate} onOpenChange={setCelebrate}>
+        <DialogContent className="max-w-xs text-center">
+          <div className="mx-auto size-16 rounded-full bg-emerald-500/15 grid place-items-center">
+            <CheckCircle2 className="size-9 text-emerald-500" />
+          </div>
+          <h3 className="text-lg font-bold">Верно! 🎉</h3>
+          <p className="text-sm text-muted-foreground">Отличная работа — задание зачтено. Двигаемся дальше.</p>
+          <Button className="w-full" onClick={() => setCelebrate(false)}>
+            Продолжить
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
