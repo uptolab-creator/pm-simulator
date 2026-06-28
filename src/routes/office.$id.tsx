@@ -41,7 +41,7 @@ import mugImg from "@/assets/office-mug.png";
 import plantImg from "@/assets/office-plant.png";
 import notebookImg from "@/assets/office-notebook.png";
 
-export const Route = createFileRoute("/_authenticated/practice/$id")({
+export const Route = createFileRoute("/office/$id")({
   component: MissionRunner,
 });
 

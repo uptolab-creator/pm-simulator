@@ -17,14 +17,14 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SimulationsIndexRouteImport } from './routes/simulations.index'
+import { Route as TestsSlugRouteImport } from './routes/tests.$slug'
 import { Route as SimulationsIdRouteImport } from './routes/simulations.$id'
+import { Route as OfficeIdRouteImport } from './routes/office.$id'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as SimulationsIdIndexRouteImport } from './routes/simulations.$id.index'
 import { Route as SimulationsIdResultsRouteImport } from './routes/simulations.$id.results'
-import { Route as AuthenticatedPracticeIdRouteImport } from './routes/_authenticated/practice.$id'
-import { Route as AuthenticatedLessonsSlugRouteImport } from './routes/_authenticated/lessons.$slug'
 
 const ProgressRoute = ProgressRouteImport.update({
   id: '/progress',
@@ -65,9 +65,19 @@ const SimulationsIndexRoute = SimulationsIndexRouteImport.update({
   path: '/simulations/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TestsSlugRoute = TestsSlugRouteImport.update({
+  id: '/tests/$slug',
+  path: '/tests/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SimulationsIdRoute = SimulationsIdRouteImport.update({
   id: '/simulations/$id',
   path: '/simulations/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfficeIdRoute = OfficeIdRouteImport.update({
+  id: '/office/$id',
+  path: '/office/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTtsRoute = ApiTtsRouteImport.update({
@@ -95,17 +105,6 @@ const SimulationsIdResultsRoute = SimulationsIdResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => SimulationsIdRoute,
 } as any)
-const AuthenticatedPracticeIdRoute = AuthenticatedPracticeIdRouteImport.update({
-  id: '/practice/$id',
-  path: '/practice/$id',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedLessonsSlugRoute =
-  AuthenticatedLessonsSlugRouteImport.update({
-    id: '/lessons/$slug',
-    path: '/lessons/$slug',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -117,10 +116,10 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
+  '/office/$id': typeof OfficeIdRoute
   '/simulations/$id': typeof SimulationsIdRouteWithChildren
+  '/tests/$slug': typeof TestsSlugRoute
   '/simulations/': typeof SimulationsIndexRoute
-  '/lessons/$slug': typeof AuthenticatedLessonsSlugRoute
-  '/practice/$id': typeof AuthenticatedPracticeIdRoute
   '/simulations/$id/results': typeof SimulationsIdResultsRoute
   '/simulations/$id/': typeof SimulationsIdIndexRoute
 }
@@ -134,9 +133,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
+  '/office/$id': typeof OfficeIdRoute
+  '/tests/$slug': typeof TestsSlugRoute
   '/simulations': typeof SimulationsIndexRoute
-  '/lessons/$slug': typeof AuthenticatedLessonsSlugRoute
-  '/practice/$id': typeof AuthenticatedPracticeIdRoute
   '/simulations/$id/results': typeof SimulationsIdResultsRoute
   '/simulations/$id': typeof SimulationsIdIndexRoute
 }
@@ -152,10 +151,10 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
+  '/office/$id': typeof OfficeIdRoute
   '/simulations/$id': typeof SimulationsIdRouteWithChildren
+  '/tests/$slug': typeof TestsSlugRoute
   '/simulations/': typeof SimulationsIndexRoute
-  '/_authenticated/lessons/$slug': typeof AuthenticatedLessonsSlugRoute
-  '/_authenticated/practice/$id': typeof AuthenticatedPracticeIdRoute
   '/simulations/$id/results': typeof SimulationsIdResultsRoute
   '/simulations/$id/': typeof SimulationsIdIndexRoute
 }
@@ -171,10 +170,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/transcribe'
     | '/api/tts'
+    | '/office/$id'
     | '/simulations/$id'
+    | '/tests/$slug'
     | '/simulations/'
-    | '/lessons/$slug'
-    | '/practice/$id'
     | '/simulations/$id/results'
     | '/simulations/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -188,9 +187,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/transcribe'
     | '/api/tts'
+    | '/office/$id'
+    | '/tests/$slug'
     | '/simulations'
-    | '/lessons/$slug'
-    | '/practice/$id'
     | '/simulations/$id/results'
     | '/simulations/$id'
   id:
@@ -205,10 +204,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/api/transcribe'
     | '/api/tts'
+    | '/office/$id'
     | '/simulations/$id'
+    | '/tests/$slug'
     | '/simulations/'
-    | '/_authenticated/lessons/$slug'
-    | '/_authenticated/practice/$id'
     | '/simulations/$id/results'
     | '/simulations/$id/'
   fileRoutesById: FileRoutesById
@@ -223,7 +222,9 @@ export interface RootRouteChildren {
   ProgressRoute: typeof ProgressRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
+  OfficeIdRoute: typeof OfficeIdRoute
   SimulationsIdRoute: typeof SimulationsIdRouteWithChildren
+  TestsSlugRoute: typeof TestsSlugRoute
   SimulationsIndexRoute: typeof SimulationsIndexRoute
 }
 
@@ -285,11 +286,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SimulationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tests/$slug': {
+      id: '/tests/$slug'
+      path: '/tests/$slug'
+      fullPath: '/tests/$slug'
+      preLoaderRoute: typeof TestsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/simulations/$id': {
       id: '/simulations/$id'
       path: '/simulations/$id'
       fullPath: '/simulations/$id'
       preLoaderRoute: typeof SimulationsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/office/$id': {
+      id: '/office/$id'
+      path: '/office/$id'
+      fullPath: '/office/$id'
+      preLoaderRoute: typeof OfficeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/tts': {
@@ -327,33 +342,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SimulationsIdResultsRouteImport
       parentRoute: typeof SimulationsIdRoute
     }
-    '/_authenticated/practice/$id': {
-      id: '/_authenticated/practice/$id'
-      path: '/practice/$id'
-      fullPath: '/practice/$id'
-      preLoaderRoute: typeof AuthenticatedPracticeIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/lessons/$slug': {
-      id: '/_authenticated/lessons/$slug'
-      path: '/lessons/$slug'
-      fullPath: '/lessons/$slug'
-      preLoaderRoute: typeof AuthenticatedLessonsSlugRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedLessonsSlugRoute: typeof AuthenticatedLessonsSlugRoute
-  AuthenticatedPracticeIdRoute: typeof AuthenticatedPracticeIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedLessonsSlugRoute: AuthenticatedLessonsSlugRoute,
-  AuthenticatedPracticeIdRoute: AuthenticatedPracticeIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -383,7 +380,9 @@ const rootRouteChildren: RootRouteChildren = {
   ProgressRoute: ProgressRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
+  OfficeIdRoute: OfficeIdRoute,
   SimulationsIdRoute: SimulationsIdRouteWithChildren,
+  TestsSlugRoute: TestsSlugRoute,
   SimulationsIndexRoute: SimulationsIndexRoute,
 }
 export const routeTree = rootRouteImport

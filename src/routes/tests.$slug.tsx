@@ -22,7 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/lessons/$slug")({
+export const Route = createFileRoute("/tests/$slug")({
   head: ({ params }) => {
     const lesson = getLesson(params.slug);
     const title = lesson
