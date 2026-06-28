@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as CourseRouteImport } from './routes/course'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -27,6 +28,11 @@ import { Route as AuthenticatedLessonsSlugRouteImport } from './routes/_authenti
 const ProgressRoute = ProgressRouteImport.update({
   id: '/progress',
   path: '/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CourseRoute = CourseRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/course': typeof CourseRoute
+  '/login': typeof LoginRoute
   '/progress': typeof ProgressRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/course': typeof CourseRoute
+  '/login': typeof LoginRoute
   '/progress': typeof ProgressRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/course': typeof CourseRoute
+  '/login': typeof LoginRoute
   '/progress': typeof ProgressRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/course'
+    | '/login'
     | '/progress'
     | '/admin'
     | '/api/transcribe'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/course'
+    | '/login'
     | '/progress'
     | '/admin'
     | '/api/transcribe'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/course'
+    | '/login'
     | '/progress'
     | '/_authenticated/admin'
     | '/api/transcribe'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CourseRoute: typeof CourseRoute
+  LoginRoute: typeof LoginRoute
   ProgressRoute: typeof ProgressRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
@@ -208,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/progress'
       fullPath: '/progress'
       preLoaderRoute: typeof ProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/course': {
@@ -338,6 +358,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CourseRoute: CourseRoute,
+  LoginRoute: LoginRoute,
   ProgressRoute: ProgressRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
