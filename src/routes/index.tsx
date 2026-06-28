@@ -127,7 +127,7 @@ function Landing() {
 
       <header className="relative z-10 max-w-5xl mx-auto px-4 py-5 flex items-center justify-between">
         <span className="font-bold tracking-tight">PM Simulator</span>
-        <Link to="/auth">
+        <Link to="/login">
           <Button size="sm" variant="outline">Войти</Button>
         </Link>
       </header>
@@ -146,9 +146,9 @@ function Landing() {
             Практический симулятор проектного менеджера в IT.
           </p>
           <div className="mt-8 animate-scale-in">
-            <Link to="/course">
+            <Link to="/login">
               <Button size="lg" className="hover-scale">
-                Начать курс <ArrowRight className="size-4" />
+                Начать <ArrowRight className="size-4" />
               </Button>
             </Link>
           </div>
