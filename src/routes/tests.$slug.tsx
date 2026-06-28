@@ -51,30 +51,45 @@ type AttemptStatus = "solved_self" | "solved_with_help" | "failed";
 function LessonRunner() {
   const { slug } = Route.useParams();
   const navigate = useNavigate();
+  const student = useStudent();
   const lesson = getLesson(slug);
-  const saveProgress = useServerFn(upsertProgress);
-  const logAttempt = useServerFn(recordAttempt);
 
   const [step, setStep] = useState(0);
   const [unlocked, setUnlocked] = useState(0);
   const [outcomes, setOutcomes] = useState<Record<number, AttemptStatus>>({});
   const [scores, setScores] = useState<Record<number, number>>({});
+  const [celebrate, setCelebrate] = useState(false);
 
   const totalSteps = lesson ? lesson.tasks.length + 2 : 0;
 
   useEffect(() => {
-    if (!lesson) return;
-    void saveProgress({
-      data: { lessonId: lesson.id, currentStep: step, status: step >= totalSteps - 1 ? "completed" : "in_progress" },
+    if (student === null) navigate({ to: "/login" });
+  }, [student, navigate]);
+
+  useEffect(() => {
+    const s = getStudent();
+    if (!lesson || !s) return;
+    const completed = step >= totalSteps - 1;
+    const scoreVals = Object.values(scores);
+    const avg = scoreVals.length ? Math.round(scoreVals.reduce((a, b) => a + b, 0) / scoreVals.length) : null;
+    void saveStudentProgress({
+      studentId: s.id,
+      kind: "test",
+      itemId: lesson.id,
+      step,
+      status: completed ? "completed" : "in_progress",
+      score: completed ? avg : null,
     }).catch(() => {});
-  }, [step, lesson, saveProgress, totalSteps]);
+  }, [step, lesson, totalSteps, scores]);
+
+  if (!student) return null;
 
   if (!lesson) {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="text-center">
-          <p>Урок не найден.</p>
-          <Link to="/course" className="text-primary hover:underline">К списку уроков</Link>
+          <p>Тест не найден.</p>
+          <Link to="/app" className="text-primary hover:underline">К списку тестов</Link>
         </div>
       </div>
     );
@@ -102,16 +117,7 @@ function LessonRunner() {
     const fallbackScore = status === "solved_self" ? 100 : status === "solved_with_help" ? 65 : 30;
     setOutcomes((o) => ({ ...o, [taskIndex]: status }));
     setScores((s) => ({ ...s, [taskIndex]: score ?? fallbackScore }));
-    if (task) {
-      void logAttempt({
-        data: {
-          lessonId: lesson!.id,
-          taskType: task.type,
-          attemptNo: 1,
-          status,
-        },
-      }).catch(() => {});
-    }
+    if (status !== "failed") setCelebrate(true);
     advance();
   }
 
