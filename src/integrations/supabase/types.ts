@@ -392,6 +392,17 @@ export type Database = {
           telegram: string
         }[]
       }
+      student_progress_list: {
+        Args: { p_student_id: string }
+        Returns: {
+          current_step: number
+          item_id: string
+          kind: string
+          score: number
+          status: string
+          updated_at: string
+        }[]
+      }
       student_save_progress: {
         Args: {
           p_item_id: string
