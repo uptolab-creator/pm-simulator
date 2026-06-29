@@ -21,7 +21,49 @@ import {
   Loader2,
   BookOpen,
   Sparkles,
+  Trophy,
 } from "lucide-react";
+
+/* ---------------- Confetti overlay ---------------- */
+const CONFETTI_COLORS = ["#22c55e", "#f59e0b", "#3b82f6", "#ec4899", "#8b5cf6", "#ef4444", "#06b6d4", "#f97316"];
+const CONFETTI_PIECES = Array.from({ length: 60 }, (_, i) => ({
+  id: i,
+  x: Math.random() * 100,
+  fallDur: (2.2 + Math.random() * 1.4).toFixed(2),
+  driftDur: (1.1 + Math.random() * 0.9).toFixed(2),
+  delay: (Math.random() * 0.9).toFixed(2),
+  color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+  size: Math.round(6 + Math.random() * 9),
+  circle: Math.random() > 0.5,
+  rot: Math.round(Math.random() * 360),
+}));
+
+function Confetti() {
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
+      {CONFETTI_PIECES.map((p) => (
+        <div
+          key={p.id}
+          className="confetti-drift absolute top-0"
+          style={{ left: `${p.x}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.driftDur}s` }}
+        >
+          <div
+            className="confetti-fall"
+            style={{
+              width: p.size,
+              height: p.size,
+              backgroundColor: p.color,
+              borderRadius: p.circle ? "50%" : 2,
+              transform: `rotate(${p.rot}deg)`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.fallDur}s`,
+            } as React.CSSProperties}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/tests/$slug")({
   head: ({ params }) => {
@@ -177,44 +219,49 @@ function LessonRunner() {
               {progressPct}%
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5">
+          <div className="mt-2 flex items-center">
             {Array.from({ length: totalSteps }).map((_, i) => {
               const ti = i - 1;
               const oc = outcomes[ti];
               const active = step === i;
               const reachable = i <= unlocked;
-              const label =
-                i === 0 ? STEP_LABELS_RU.theory : i === totalSteps - 1 ? STEP_LABELS_RU.summary : STEP_LABELS_RU[lesson.tasks[ti].type];
+              const isTheoryStep = i === 0;
+              const isSummaryStep = i === totalSteps - 1;
               return (
-                <button
-                  key={i}
-                  type="button"
-                  disabled={!reachable}
-                  onClick={() => goTo(i)}
-                  className="flex-1 group disabled:cursor-not-allowed"
-                  aria-label={`Шаг ${i + 1}: ${label}`}
-                >
-                  <div
+                <div key={i} className="flex items-center flex-1 min-w-0">
+                  {i > 0 && (
+                    <div
+                      className={cn(
+                        "h-px flex-1 transition-colors duration-300",
+                        i <= unlocked ? "bg-primary/35" : "bg-border",
+                      )}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    disabled={!reachable}
+                    onClick={() => goTo(i)}
+                    aria-label={`Шаг ${i + 1}`}
                     className={cn(
-                      "h-1.5 rounded-full transition-all",
-                      oc === "solved_self" && "bg-emerald-500",
-                      oc === "solved_with_help" && "bg-amber-400",
-                      oc === "failed" && "bg-destructive",
-                      !oc && active && "bg-primary",
-                      !oc && !active && reachable && "bg-primary/30",
-                      !oc && !active && !reachable && "bg-secondary",
-                      active && "ring-2 ring-primary/40",
-                    )}
-                  />
-                  <div
-                    className={cn(
-                      "mt-1 text-[9px] text-center uppercase tracking-wide truncate",
-                      active ? "text-foreground font-semibold" : "text-muted-foreground",
+                      "shrink-0 size-7 rounded-full flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed",
+                      oc === "solved_self" && "bg-emerald-500 text-white shadow-sm",
+                      oc === "solved_with_help" && "bg-amber-400 text-white shadow-sm",
+                      oc === "failed" && "bg-destructive text-white shadow-sm",
+                      !oc && active && "bg-primary text-primary-foreground ring-2 ring-primary/40 ring-offset-1 scale-110",
+                      !oc && !active && reachable && "bg-primary/15 text-primary hover:bg-primary/25",
+                      !oc && !active && !reachable && "bg-secondary text-muted-foreground",
                     )}
                   >
-                    {label}
-                  </div>
-                </button>
+                    {oc === "solved_self" && <CheckCircle2 className="size-3.5" />}
+                    {oc === "solved_with_help" && <CheckCircle2 className="size-3.5" />}
+                    {oc === "failed" && <XCircle className="size-3.5" />}
+                    {!oc && isTheoryStep && <BookOpen className="size-3" />}
+                    {!oc && isSummaryStep && <Trophy className="size-3" />}
+                    {!oc && !isTheoryStep && !isSummaryStep && (
+                      <span className="text-[10px] font-bold leading-none">{ti + 1}</span>
+                    )}
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -238,15 +285,18 @@ function LessonRunner() {
         )}
       </main>
 
+      {celebrate && <Confetti />}
       <Dialog open={celebrate} onOpenChange={setCelebrate}>
-        <DialogContent className="max-w-xs text-center">
-          <div className="mx-auto size-16 rounded-full bg-emerald-500/15 grid place-items-center">
-            <CheckCircle2 className="size-9 text-emerald-500" />
+        <DialogContent className="max-w-xs text-center gap-4">
+          <div className="mx-auto size-24 rounded-full bg-emerald-500/15 grid place-items-center animate-bounce">
+            <CheckCircle2 className="size-14 text-emerald-500" />
           </div>
-          <h3 className="text-lg font-bold">Верно! 🎉</h3>
-          <p className="text-sm text-muted-foreground">Отличная работа — задание зачтено. Двигаемся дальше.</p>
-          <Button className="w-full" onClick={() => setCelebrate(false)}>
-            Продолжить
+          <div>
+            <h3 className="text-2xl font-bold">Верно! 🎉</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Отличная работа — задание зачтено!</p>
+          </div>
+          <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setCelebrate(false)}>
+            Продолжить →
           </Button>
         </DialogContent>
       </Dialog>
@@ -319,9 +369,11 @@ function QuizStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
   const [attempts, setAttempts] = useState(0);
   const [usedHelp, setUsedHelp] = useState(false);
   const [reveal, setReveal] = useState(false);
+  const [wrongKey, setWrongKey] = useState(0);
 
   const q = task.questions[qi];
   const correct = selected === q.correctIndex;
+  const showWrongBanner = attempts > 0 && !reveal && selected !== null && selected !== q.correctIndex;
 
   function check() {
     if (selected === null) return;
@@ -331,6 +383,7 @@ function QuizStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
       const n = attempts + 1;
       setAttempts(n);
       setUsedHelp(true);
+      setWrongKey((k) => k + 1);
       if (n >= 2) setReveal(true);
     }
   }
@@ -341,6 +394,7 @@ function QuizStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
       setSelected(null);
       setAttempts(0);
       setReveal(false);
+      setWrongKey(0);
       if (withHelp) setUsedHelp(true);
     } else {
       onComplete(usedHelp || withHelp ? "solved_with_help" : "solved_self");
@@ -387,6 +441,15 @@ function QuizStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
           );
         })}
 
+      {showWrongBanner && (
+        <div
+          key={wrongKey}
+          className="wrong-shake flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive animate-in fade-in slide-in-from-top-1"
+        >
+          <XCircle className="size-4 shrink-0" />
+          Неправильный ответ! Попробуй ещё раз.
+        </div>
+      )}
       {attempts === 1 && !reveal && <HintBox level={1} text={task.hint1} />}
       {attempts >= 2 && !reveal && <HintBox level={2} text={task.hint2} />}
       {reveal && (
@@ -423,6 +486,7 @@ function CalcStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
   const [value, setValue] = useState("");
   const [attempts, setAttempts] = useState(0);
   const [reveal, setReveal] = useState(false);
+  const [wrongKey, setWrongKey] = useState(0);
 
   function judge(): boolean {
     const raw = value.trim().toLowerCase();
@@ -447,6 +511,7 @@ function CalcStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
     } else {
       const n = attempts + 1;
       setAttempts(n);
+      setWrongKey((k) => k + 1);
       if (n >= 2) setReveal(true);
     }
   }
@@ -468,6 +533,15 @@ function CalcStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
         disabled={reveal}
       />
 
+      {attempts > 0 && !reveal && (
+        <div
+          key={wrongKey}
+          className="wrong-shake flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive animate-in fade-in slide-in-from-top-1 mt-3"
+        >
+          <XCircle className="size-4 shrink-0" />
+          Неправильный ответ! Проверь расчёт и попробуй снова.
+        </div>
+      )}
       {attempts === 1 && !reveal && <HintBox level={1} text={task.hint1} />}
       {attempts >= 2 && !reveal && <HintBox level={2} text={task.hint2} />}
       {reveal && (
@@ -504,6 +578,7 @@ function CaseStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
   const [assign, setAssign] = useState<Record<number, string>>({});
   const [attempts, setAttempts] = useState(0);
   const [reveal, setReveal] = useState(false);
+  const [wrongKey, setWrongKey] = useState(0);
 
   const allAssigned = task.items.every((_, i) => assign[i]);
   const allCorrect = task.items.every((it, i) => assign[i] === it.correct);
@@ -515,6 +590,7 @@ function CaseStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
     } else {
       const n = attempts + 1;
       setAttempts(n);
+      setWrongKey((k) => k + 1);
       if (n >= 2) setReveal(true);
     }
   }
@@ -552,6 +628,15 @@ function CaseStep({ lessonId, task, onComplete }: { lessonId: string; task: Extr
         })}
       </div>
 
+      {attempts > 0 && !reveal && (
+        <div
+          key={wrongKey}
+          className="wrong-shake flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive animate-in fade-in slide-in-from-top-1 mt-3"
+        >
+          <XCircle className="size-4 shrink-0" />
+          Неправильно! Не все элементы распределены верно. Попробуй снова.
+        </div>
+      )}
       {attempts === 1 && !reveal && <HintBox level={1} text={task.hint1} />}
       {attempts >= 2 && !reveal && <HintBox level={2} text={task.hint2} />}
       {reveal && (

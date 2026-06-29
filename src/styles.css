@@ -265,3 +265,27 @@
 
 .font-handwriting { font-family: "Caveat", "Kalam", cursive; }
 .font-marker      { font-family: "Permanent Marker", "Caveat", cursive; }
+
+/* Quiz redesign — confetti & wrong-answer shake */
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg) scaleY(1); opacity: 1; }
+  85%  { opacity: 0.8; }
+  100% { transform: translateY(105vh) rotate(800deg) scaleY(0.6); opacity: 0; }
+}
+@keyframes confetti-drift {
+  0%, 100% { margin-left: 0; }
+  30%       { margin-left: 28px; }
+  70%       { margin-left: -22px; }
+}
+.confetti-fall  { animation: confetti-fall  var(--fall-dur, 2.6s) ease-in forwards; }
+.confetti-drift { animation: confetti-drift var(--drift-dur, 1.4s) ease-in-out infinite; }
+
+@keyframes wrong-shake {
+  0%   { transform: translateX(0); }
+  18%  { transform: translateX(-7px); }
+  36%  { transform: translateX(7px); }
+  54%  { transform: translateX(-5px); }
+  72%  { transform: translateX(5px); }
+  100% { transform: translateX(0); }
+}
+.wrong-shake { animation: wrong-shake 0.38s ease-out; }
