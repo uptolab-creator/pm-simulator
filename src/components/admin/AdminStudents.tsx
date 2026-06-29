@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Users, Flame, Moon, CheckCircle2, AlertOctagon } from "lucide-react";
+import { Search, Users, Flame, Moon, CheckCircle2, AlertOctagon, AlertTriangle, RefreshCw } from "lucide-react";
 
 const STATUS: Record<StudentStat["status"], { cls: string; label: string }> = {
   active: { cls: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30", label: "Активен" },
@@ -27,9 +27,10 @@ type SortKey = "name" | "completionPct" | "avgAttempts" | "appeals" | "lastActiv
 
 export function AdminStudents() {
   const fetchStudents = useServerFn(getStudents);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-students"],
     queryFn: () => fetchStudents() as Promise<StudentStat[]>,
+    retry: 1,
   });
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | StudentStat["status"]>("all");
@@ -46,8 +47,20 @@ export function AdminStudents() {
     });
   }, [data, filter, q, sort]);
 
-  if (isLoading || !data) {
-    return <div className="text-muted-foreground py-12 text-center">Загрузка студентов…</div>;
+  if (isLoading) {
+    return <div className="text-muted-foreground py-12 text-center flex items-center justify-center gap-2"><RefreshCw className="size-4 animate-spin" /> Загрузка студентов…</div>;
+  }
+
+  if (error || !data) {
+    return (
+      <div className="py-12 text-center space-y-3">
+        <AlertTriangle className="size-6 mx-auto text-destructive" />
+        <p className="text-sm text-destructive">{(error as Error)?.message || "Не удалось загрузить список студентов"}</p>
+        <button onClick={() => refetch()} className="text-sm text-primary hover:underline flex items-center gap-1 mx-auto">
+          <RefreshCw className="size-3" /> Повторить загрузку
+        </button>
+      </div>
+    );
   }
 
   const counts = {

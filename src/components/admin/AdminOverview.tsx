@@ -26,6 +26,7 @@ import {
   Layers,
   CheckCircle2,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 function Kpi({
@@ -63,13 +64,26 @@ function Kpi({
 
 export function AdminOverview() {
   const fetchData = useServerFn(getAdminAnalytics);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: () => fetchData() as Promise<AdminAnalytics>,
+    retry: 1,
   });
 
-  if (isLoading || !data) {
-    return <div className="text-muted-foreground py-12 text-center">Считаем метрики…</div>;
+  if (isLoading) {
+    return <div className="text-muted-foreground py-12 text-center flex items-center justify-center gap-2"><RefreshCw className="size-4 animate-spin" /> Считаем метрики…</div>;
+  }
+
+  if (error || !data) {
+    return (
+      <div className="py-12 text-center space-y-3">
+        <AlertTriangle className="size-6 mx-auto text-destructive" />
+        <p className="text-sm text-destructive">{(error as Error)?.message || "Не удалось загрузить аналитику"}</p>
+        <button onClick={() => refetch()} className="text-sm text-primary hover:underline flex items-center gap-1 mx-auto">
+          <RefreshCw className="size-3" /> Повторить загрузку
+        </button>
+      </div>
+    );
   }
 
   const o = data.overview;

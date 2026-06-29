@@ -9,7 +9,7 @@ import { AdminLessons } from "@/components/admin/AdminLessons";
 import { AdminCallLogs } from "@/components/admin/AdminCallLogs";
 import { AdminStudents } from "@/components/admin/AdminStudents";
 import { AdminManageStudents } from "@/components/admin/AdminManageStudents";
-import { LayoutDashboard, BookOpen, PhoneCall, ShieldCheck, ArrowLeft, Users, UserCog } from "lucide-react";
+import { LayoutDashboard, BookOpen, PhoneCall, ShieldCheck, ArrowLeft, Users, UserCog, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -20,13 +20,39 @@ export const Route = createFileRoute("/_authenticated/admin")({
 function AdminPage() {
   const fetchStatus = useServerFn(getAdminStatus);
   const claim = useServerFn(claimAdmin);
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-status"],
     queryFn: () => fetchStatus() as Promise<{ isAdmin: boolean; adminCount: number }>,
+    retry: 1,
   });
 
   if (isLoading) {
-    return <div className="min-h-screen grid place-items-center text-muted-foreground">Загрузка…</div>;
+    return (
+      <div className="min-h-screen grid place-items-center text-muted-foreground">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="size-6 animate-spin opacity-50" />
+          <span>Загрузка…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen grid place-items-center p-6">
+        <div className="max-w-md w-full rounded-xl border bg-card p-6 text-center space-y-4">
+          <AlertTriangle className="size-10 mx-auto text-destructive" />
+          <h1 className="text-xl font-bold">Ошибка загрузки</h1>
+          <p className="text-sm text-muted-foreground">
+            {(error as Error)?.message || "Не удалось подключиться к серверу. Проверьте соединение."}
+          </p>
+          <Button onClick={() => refetch()}>
+            <RefreshCw className="size-4" /> Попробовать снова
+          </Button>
+          <Link to="/app" className="block text-sm text-primary hover:underline">← На главную</Link>
+        </div>
+      </div>
+    );
   }
 
   if (!data?.isAdmin) {

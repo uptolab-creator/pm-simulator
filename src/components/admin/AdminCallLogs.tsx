@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { LESSONS } from "@/lib/course";
 import { toast } from "sonner";
-import { PhoneCall, Flag, CheckCircle2, XCircle, Filter } from "lucide-react";
+import { PhoneCall, Flag, CheckCircle2, XCircle, Filter, AlertTriangle, RefreshCw } from "lucide-react";
 
 export function AdminCallLogs() {
   const fetchLogs = useServerFn(getCallLogs);
@@ -43,9 +43,10 @@ export function AdminCallLogs() {
     search,
   };
 
-  const { data: logs, isLoading } = useQuery({
+  const { data: logs, isLoading, error, refetch } = useQuery({
     queryKey: ["call-logs", filters],
     queryFn: () => fetchLogs({ data: filters }) as Promise<CallLog[]>,
+    retry: 1,
   });
 
   async function applyOverrule(log: CallLog, status: "solved_self" | "solved_with_help" | "failed") {
@@ -111,7 +112,17 @@ export function AdminCallLogs() {
         </Card>
 
         {isLoading ? (
-          <div className="text-muted-foreground py-12 text-center">Загрузка звонков…</div>
+          <div className="text-muted-foreground py-12 text-center flex items-center justify-center gap-2">
+            <RefreshCw className="size-4 animate-spin" /> Загрузка звонков…
+          </div>
+        ) : error ? (
+          <div className="py-12 text-center space-y-3">
+            <AlertTriangle className="size-6 mx-auto text-destructive" />
+            <p className="text-sm text-destructive">{(error as Error)?.message || "Не удалось загрузить логи"}</p>
+            <button onClick={() => refetch()} className="text-sm text-primary hover:underline flex items-center gap-1 mx-auto">
+              <RefreshCw className="size-3" /> Повторить загрузку
+            </button>
+          </div>
         ) : !logs?.length ? (
           <Card className="p-10 text-center text-sm text-muted-foreground">
             Нет звонков по выбранным фильтрам.

@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { STEP_LABELS_RU, type TaskType } from "@/lib/course";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, RefreshCw } from "lucide-react";
 
 const DIFF_BADGE: Record<LessonStat["difficulty"], { cls: string; label: string }> = {
   green: { cls: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30", label: "Норма" },
@@ -23,14 +23,27 @@ const DIFF_BADGE: Record<LessonStat["difficulty"], { cls: string; label: string 
 
 export function AdminLessons() {
   const fetchData = useServerFn(getAdminAnalytics);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: () => fetchData() as Promise<AdminAnalytics>,
+    retry: 1,
   });
   const [selected, setSelected] = useState<string | null>(null);
 
-  if (isLoading || !data) {
-    return <div className="text-muted-foreground py-12 text-center">Загрузка уроков…</div>;
+  if (isLoading) {
+    return <div className="text-muted-foreground py-12 text-center flex items-center justify-center gap-2"><RefreshCw className="size-4 animate-spin" /> Загрузка уроков…</div>;
+  }
+
+  if (error || !data) {
+    return (
+      <div className="py-12 text-center space-y-3">
+        <AlertTriangle className="size-6 mx-auto text-destructive" />
+        <p className="text-sm text-destructive">{(error as Error)?.message || "Не удалось загрузить данные"}</p>
+        <button onClick={() => refetch()} className="text-sm text-primary hover:underline flex items-center gap-1 mx-auto">
+          <RefreshCw className="size-3" /> Повторить загрузку
+        </button>
+      </div>
+    );
   }
 
   const lesson = data.lessons.find((l) => l.lessonId === selected);

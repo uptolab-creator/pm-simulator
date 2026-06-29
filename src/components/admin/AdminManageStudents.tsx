@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Trash2, Loader2, Send } from "lucide-react";
+import { UserPlus, Trash2, Loader2, Send, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export function AdminManageStudents() {
@@ -22,9 +22,10 @@ export function AdminManageStudents() {
   const [telegram, setTelegram] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["managed-students"],
     queryFn: () => fetchList() as Promise<ManagedStudent[]>,
+    retry: 1,
   });
 
   async function handleAdd(e: React.FormEvent) {
@@ -93,8 +94,17 @@ export function AdminManageStudents() {
           Студенты {data ? `(${data.length})` : ""}
         </div>
         {isLoading ? (
-          <div className="grid place-items-center py-12 text-muted-foreground">
+          <div className="grid place-items-center py-12 text-muted-foreground gap-2">
             <Loader2 className="size-5 animate-spin" />
+            <span className="text-sm">Загрузка…</span>
+          </div>
+        ) : error ? (
+          <div className="py-12 text-center space-y-3">
+            <AlertTriangle className="size-5 mx-auto text-destructive" />
+            <p className="text-sm text-destructive">{(error as Error)?.message || "Ошибка загрузки"}</p>
+            <button onClick={() => refetch()} className="text-sm text-primary hover:underline flex items-center gap-1 mx-auto">
+              <RefreshCw className="size-3" /> Повторить
+            </button>
           </div>
         ) : !data?.length ? (
           <p className="px-5 py-12 text-center text-sm text-muted-foreground">Студентов пока нет.</p>
